@@ -17,6 +17,7 @@ import org.nukkit.raknetty.util.PacketUtil;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.nukkit.raknetty.handler.codec.Message.UDP_HEADER_SIZE;
 import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
@@ -150,45 +151,49 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
     public void readAck(AcknowledgePacket ack, long timeRead) {
         LOGGER.debug("ACK: " + ack);
-        ack.indices().forEach(messageNumber -> {
+        ack.indices().forEach(datagramNumber -> {
 
             // remove if the message is sent in an unreliable way
-            UnreliableAckReceipt receipt = unreliableReceipts.get(messageNumber);
+            UnreliableAckReceipt receipt = unreliableReceipts.get(datagramNumber);
             if (receipt != null) {
                 channel.pipeline().fireUserEventTriggered(
                         new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_ACKED, receipt.serial));
-                unreliableReceipts.remove(messageNumber);
+                unreliableReceipts.remove(datagramNumber);
                 return;
             }
 
-            Integer timeSent = datagramHistory.get(messageNumber);
-            if (timeSent != null) {
-                long ping = timeRead > timeSent ? timeRead - timeSent : 0;
+            DatagramHistory.Node node = datagramHistory.get(datagramNumber);
+            if (node != null) {
+                long timeSent = node.timeSent;
+                long ping = Math.max(timeRead - timeSent, 0);
                 slidingWindow().onAck(ping, ack);
 
-                //TODO: check if we should implement messageNumberNode->next;
-                removeFromResendList(messageNumber);
-                // RemoveFromDatagramHistory
-                datagramHistory.remove(messageNumber);
-            }
+                // remove message from resend list and delete older reliable sequenced.
+                node.messages.forEach(this::removeFromResendList);
 
-            // TODO:
-            //  fire event: ack receipt
-            //  get message node by index
-            //  congestionManager.onAck()
-            //  remove index from history
+                // remove from datagram history
+                datagramHistory.remove(datagramNumber);
+            }
         });
     }
 
     public void readNak(AcknowledgePacket nak, long timeRead) {
         LOGGER.debug("NAK: " + nak);
-        nak.indices().forEach(index -> {
+        nak.indices().forEach(datagramNumber -> {
             // ReliabilityLayer.cpp#L831
             slidingWindow().onNak();
-            // TODO: check if we should implement messageNumberNode->next;
-            //  congestionManager.onNak()
-            //  resend immediately
 
+            DatagramHistory.Node node = datagramHistory.get(datagramNumber);
+            if (node != null) {
+
+                // update timers so resends occur in this next update.
+                node.messages.forEach(messageNumber -> {
+                    InternalPacket packet = resendBuffer[messageNumber & RESEND_BUFFER_ARRAY_MASK];
+                    if (packet != null) {
+                        packet.actionTime = timeRead;
+                    }
+                });
+            }
         });
     }
 
@@ -385,7 +390,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     private final Map<Integer, UnreliableAckReceipt> unreliableReceipts = new HashMap<>();
     private final LinkedList<InternalPacket> unreliableList = new LinkedList<>();
 
-    private final Map<Integer, Integer> datagramHistory = new HashMap<>();
+    private final DatagramHistory datagramHistory = new DatagramHistory();
     private final InternalPacket[] resendBuffer = new InternalPacket[RESEND_BUFFER_ARRAY_LENGTH];
 
     @Override
@@ -472,6 +477,14 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
     public void writeDatagram(DatagramHeader header, List<InternalPacket> packets) {
         ByteBuf buf = channel.alloc().ioBuffer();
+
+        header.datagramNumber = slidingWindow().increaseDatagramNumber();
+        header.encode(buf);
+
+        LinkedList<InternalPacket> history = packets.stream()
+                .filter(packet -> packet.reliability.isReliable() || packet.reliability.withAckReceipt())
+                .collect(Collectors.toCollection(LinkedList::new));
+
 
     }
 
@@ -715,4 +728,6 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             this.actionTime = actionTime;
         }
     }
+
+
 }

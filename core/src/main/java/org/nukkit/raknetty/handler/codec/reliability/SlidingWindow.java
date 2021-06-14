@@ -69,7 +69,7 @@ public class SlidingWindow {
         return this.nextDatagramNumber;
     }
 
-    public int increaseNextDatagramNumber() {
+    public int increaseDatagramNumber() {
         return ++nextDatagramNumber;
     }
 
