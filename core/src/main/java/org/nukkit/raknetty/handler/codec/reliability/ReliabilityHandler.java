@@ -17,7 +17,6 @@ import org.nukkit.raknetty.util.PacketUtil;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static org.nukkit.raknetty.handler.codec.Message.UDP_HEADER_SIZE;
 import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
@@ -137,7 +136,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             // insert received indices to ACK list
             ACKs.add(header.datagramNumber);
 
-            InternalPacket internalPacket = new InternalPacket(); //TODO: make it pooled
+            InternalPacket internalPacket = new InternalPacket();
             internalPacket.header = header;
             internalPacket.headerLength = buf.readerIndex();
             internalPacket.decode(buf);
@@ -481,11 +480,21 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         header.datagramNumber = slidingWindow().increaseDatagramNumber();
         header.encode(buf);
 
-        LinkedList<InternalPacket> history = packets.stream()
-                .filter(packet -> packet.reliability.isReliable() || packet.reliability.withAckReceipt())
-                .collect(Collectors.toCollection(LinkedList::new));
+        packets.forEach(packet -> {
+            if (packet.reliability.isReliable() || packet.reliability.withAckReceipt()) {
+                datagramHistory.add(header.datagramNumber, packet.reliableIndex);
+            }
 
+            packet.encode(buf);
+        });
 
+        if (datagramHistory.get(header.datagramNumber) == null) {
+            // add dummy node for unreliable packets
+            datagramHistory.add(header.datagramNumber, 0);
+        }
+
+        // send the datagram
+        channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     /***
@@ -546,7 +555,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             //int messageNum = history.getKey();
             UnreliableAckReceipt receipt = history.getValue();
 
-            if (receipt.actionTime - currentTime >= 0) {
+            if (currentTime - receipt.actionTime >= 0) {
                 channel.pipeline().fireUserEventTriggered(
                         new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_LOSS, receipt.serial));
 
@@ -583,8 +592,8 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
                         Validate.isTrue(packet.header != null);
                         Validate.isTrue(packet.header.datagramNumber >= 0);
 
-                        if (packet.actionTime - currentTime >= 0) {
-                            int packetLength = packet.headerLength + packet.bodyLength;
+                        if (currentTime - packet.actionTime >= 0) {
+                            int packetLength = packet.headerLength + packet.bodyLength();
                             if (datagramSizes + packetLength > slidingWindow().getMtuExcludingMessageHeader()) {
                                 // pushDatagram();
                                 writeDatagram(header, sendList);
@@ -656,7 +665,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
                         }
 
                         packet.headerLength = PacketUtil.getHeaderLength(packet);
-                        int packetLength = packet.headerLength + packet.bodyLength;
+                        int packetLength = packet.headerLength + packet.bodyLength();
 
                         if (datagramSizes + packetLength > slidingWindow().getMtuExcludingMessageHeader()) {
                             // hit MTU, stop pushing packets
@@ -706,6 +715,9 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
             bandwidthExceeded = !sendBuffer.isEmpty();
         }
+
+        // flush the channel after each update to let the datagram going through the pipeline
+        channel.pipeline().flush();
     }
 
 

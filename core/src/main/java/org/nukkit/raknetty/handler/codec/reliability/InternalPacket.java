@@ -19,8 +19,6 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
     public int splitPacketId;
     public int splitPacketIndex;
 
-    //public int bitLength;
-
     public int reliableIndex;
     public int sequencingIndex;
     public int orderingIndex;
@@ -30,14 +28,55 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
     @Override
     public void encode(ByteBuf buf) {
-        // TODO
+        // TODO:
+        byte flag = 0;
+        PacketReliability temp = switch (this.reliability) {
+            case UNRELIABLE_WITH_ACK_RECEIPT -> PacketReliability.UNRELIABLE;
+            case RELIABLE_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE;
+            case RELIABLE_ORDERED_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE_ORDERED;
+            default -> this.reliability;
+        };
+
+        flag |= temp.ordinal() << 5;
+
+        if (hasSplitPacket) {
+            flag |= 0b1 << 4;
+        }
+
+        buf.writeByte(flag);
+
+        int bitLength = bodyLength() * 8;
+        Validate.isTrue(bitLength < 0xFFFF, "payload too large"); // data bit length should be less than 65535
+
+        buf.writeShort(bitLength);
+
+        if (reliability.isReliable()) {
+            buf.writeMediumLE(reliableIndex);
+        }
+
+        if (reliability.isSequenced()) {
+            buf.writeMediumLE(sequencingIndex);
+        }
+
+        if (reliability.isOrdered()) {
+            buf.writeMediumLE(orderingIndex);
+            buf.writeByte(orderingChannel);
+        }
+
+        if (hasSplitPacket) {
+            buf.writeInt(splitPacketCount);
+            buf.writeShort(splitPacketId);
+            buf.writeInt(splitPacketIndex);
+        }
+
+        buf.writeBytes(data);
     }
 
     @Override
     public void decode(ByteBuf buf) {
         byte flag = buf.readByte();
         reliability = PacketReliability.valueOf(flag >> 5);
-        hasSplitPacket = (flag >> 4 & 0b1) > 0;
+        hasSplitPacket = (flag >> 4 & 0b1) != 0;
         int bitLength = buf.readShort();
 
         Validate.isTrue(!reliability.withAckReceipt(), "ACK_RECEIPT from remote system");
@@ -73,11 +112,16 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
         // we want to make sure the packet have enough bytes left to read
         // and it should be smaller than the MTU size
-        bodyLength = PacketUtil.bitToBytes(bitLength);
+        int bodyLength = PacketUtil.bitToBytes(bitLength);
         Validate.isTrue(bodyLength < MTUSize.MAXIMUM_MTU_SIZE, "packet length exceeds the limit");
         Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
 
-        data = buf.retainedSlice();
+        data = buf.retainedSlice(buf.readerIndex(), bodyLength);
+    }
+
+    @Override
+    public int bodyLength() {
+        return data.writerIndex() - data.readerIndex();
     }
 
     @Override

@@ -7,11 +7,12 @@ public abstract class DefaultReliabilityMessage implements ReliabilityMessage {
     public DatagramHeader header;
 
     public int headerLength;
-    public int bodyLength;
 
     public int receiptSerial;
     public int timeSent;
     public long actionTime;
     public long retransmissionTime;
     public final long creationTime = System.nanoTime();
+
+    public abstract int bodyLength();
 }
