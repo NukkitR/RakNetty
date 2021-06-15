@@ -46,8 +46,7 @@ public class SplitPacketList {
 
         while (iterator.hasNext()) {
             InternalPacket p = iterator.next();
-            packet.data.writeBytes(p.data, PacketUtil.bitToBytes(p.bitLength));
-            packet.bitLength += p.bitLength;
+            packet.data.writeBytes(p.data, p.bodyLength());
 
             // release all the other packets except the first one
             ReferenceCountUtil.release(p);

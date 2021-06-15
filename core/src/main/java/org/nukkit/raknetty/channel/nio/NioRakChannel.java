@@ -12,6 +12,7 @@ import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannelConfig;
 import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.Message;
+import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionAttemptFailed;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionLost;
@@ -39,7 +40,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     private int mtuSize;
     private Future<?> updateTask;
 
-    private final long nextPingTime = 0;
+    private long nextPingTime = 0;
 
     private final ReliabilityHandler reliabilityHandler = new ReliabilityHandler(this);
 
@@ -87,8 +88,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     private void pingInternal(PacketReliability reliability) {
         ConnectedPing ping = new ConnectedPing();
         ping.pingTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime());
-
-        sendImmediate();
+        reliabilityHandler.send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
     }
 
     @Override

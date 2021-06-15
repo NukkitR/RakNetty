@@ -4,11 +4,11 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.DefaultReliabilityMessage;
+import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 
 import java.util.*;
 
-public class AcknowledgePacket extends DefaultReliabilityMessage {
+public class AcknowledgePacket extends InternalPacket {
 
     private final Set<Integer> indices = new HashSet<>();
 

@@ -8,6 +8,8 @@ public interface Message {
 
     int UDP_HEADER_SIZE = 28;
 
+    int MESSAGE_HEADER_MAX_SIZE = 1 + 2 + 3 + 3 + 3 + 1 + 4 + 2 + 4;
+
     void encode(ByteBuf buf);
 
     void decode(ByteBuf buf);

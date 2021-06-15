@@ -10,9 +10,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.handler.codec.DatagramHeader;
-import org.nukkit.raknetty.handler.codec.MTUSize;
-import org.nukkit.raknetty.handler.codec.PacketReliability;
+import org.nukkit.raknetty.handler.codec.*;
 import org.nukkit.raknetty.util.PacketUtil;
 
 import java.util.*;
@@ -32,6 +30,10 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     public ReliabilityHandler(RakChannel channel) {
         for (int i = 0; i < NUMBER_OF_ORDERED_STREAMS; i++) {
             orderingHeaps[i] = new PriorityQueue<>(Comparator.comparingInt(a -> a.weight));
+        }
+
+        for (int i = 0; i < PacketPriority.NUMBER_OF_PRIORITIES.ordinal(); i++) {
+            sendWeights[i] = (1 << i) * i + i;
         }
 
         this.channel = channel;
@@ -136,12 +138,14 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             // insert received indices to ACK list
             ACKs.add(header.datagramNumber);
 
-            InternalPacket internalPacket = new InternalPacket();
-            internalPacket.header = header;
-            internalPacket.headerLength = buf.readerIndex();
-            internalPacket.decode(buf);
-            readPacket(ctx, internalPacket);
-            receivedCount++;
+            while (buf.isReadable()) {
+                InternalPacket internalPacket = new InternalPacket();
+                internalPacket.header = header;
+                internalPacket.headerLength = buf.readerIndex();
+                internalPacket.decode(buf);
+                readPacket(ctx, internalPacket);
+                receivedCount++;
+            }
 
         } finally {
             ReferenceCountUtil.release(msg);
@@ -380,6 +384,10 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     private boolean bandwidthExceeded = false;
 
     private int sendReliableIndex = 0;
+    private int sendSplitId = 0;
+    private final int[] sendOrderedIndex = new int[NUMBER_OF_ORDERED_STREAMS];
+    private final int[] sendSequencedIndex = new int[NUMBER_OF_ORDERED_STREAMS];
+    private final int[] sendWeights = new int[4];
 
     private final PriorityQueue<HeapedPacket> sendBuffer = new PriorityQueue<>();
     private final LinkedList<InternalPacket> resendList = new LinkedList<>();
@@ -495,6 +503,138 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
         // send the datagram
         channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
+    }
+
+    public void send(ReliabilityMessage message, PacketPriority priority, PacketReliability reliability, int orderingChannel) {
+
+        if (reliability == null) {
+            reliability = PacketReliability.RELIABLE;
+        }
+
+        if (priority == null) {
+            priority = PacketPriority.HIGH_PRIORITY;
+        }
+
+        if (orderingChannel > InternalPacket.NUMBER_OF_ORDERED_STREAMS) {
+            orderingChannel = 0;
+        }
+
+        ByteBuf buf = channel.alloc().ioBuffer();
+        message.encode(buf);
+
+        InternalPacket packet = new InternalPacket();
+        packet.data = buf;
+        packet.priority = priority;
+        packet.reliability = reliability;
+
+        int maxSize = slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
+        boolean splitPacket = packet.bodyLength() > maxSize;
+
+        if (splitPacket) {
+            packet.reliability = switch (packet.reliability) {
+                case UNRELIABLE -> PacketReliability.RELIABLE;
+                case UNRELIABLE_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE_WITH_ACK_RECEIPT;
+                case UNRELIABLE_SEQUENCED -> PacketReliability.RELIABLE_SEQUENCED;
+                default -> packet.reliability;
+            };
+        }
+
+        if (packet.reliability.isSequenced()) {
+            packet.orderingChannel = orderingChannel;
+            packet.orderingIndex = sendOrderedIndex[orderingChannel];
+            packet.sequencingIndex = sendSequencedIndex[orderingChannel]++;
+
+        } else if (packet.reliability.isOrdered()) {
+            packet.orderingChannel = orderingChannel;
+            packet.orderingIndex = sendOrderedIndex[orderingChannel]++;
+            sendSequencedIndex[orderingChannel] = 0;
+        }
+
+        if (splitPacket) {
+            splitPacket(packet);
+            return;
+        }
+
+        if (!packet.reliability.isReliable()) {
+            unreliableList.add(packet);
+        }
+
+        sendBuffer.add(new HeapedPacket(nextWeight(priority), packet));
+    }
+
+    private void splitPacket(InternalPacket packet) {
+
+        packet.splitPacketCount = 1; // mark it as split packet by assigning an arbitrary value
+        int headerLength = PacketUtil.getHeaderLength(packet);
+        int bodyLength = packet.bodyLength();
+        int blockSize = slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
+
+        int splitPacketCount = ((bodyLength - 1) / blockSize + 1);
+
+        InternalPacket[] arr = new InternalPacket[splitPacketCount];
+
+        int splitPacketIndex = 0;
+
+        do {
+
+            int size = Math.min(packet.data.readableBytes(), blockSize);
+
+            InternalPacket p = new InternalPacket();
+
+            // copy chunk of data
+            p.data = channel.alloc().ioBuffer(size, size);
+            p.data.writeBytes(packet.data, size);
+
+            // copy properties
+            p.header = packet.header;
+            p.headerLength = headerLength;
+            p.reliableIndex = packet.reliableIndex;
+            p.sequencingIndex = packet.sequencingIndex;
+            p.orderingIndex = packet.orderingIndex;
+            p.orderingChannel = packet.orderingChannel;
+            p.reliability = packet.reliability;
+            p.priority = packet.priority;
+
+            // assign split indices
+            p.splitPacketIndex = splitPacketIndex;
+            p.splitPacketId = sendSplitId;
+            p.splitPacketCount = splitPacketCount;
+
+            arr[splitPacketIndex] = p;
+
+            Validate.isTrue(p.bodyLength() < MTUSize.MAXIMUM_MTU_SIZE);
+
+            if (!p.reliability.isReliable()) {
+                unreliableList.add(p);
+            }
+
+            sendBuffer.add(new HeapedPacket(nextWeight(p.priority), p));
+
+        } while (++splitPacketIndex < splitPacketCount);
+
+        sendSplitId++;
+
+        ReferenceCountUtil.release(packet);
+    }
+
+    private int nextWeight(PacketPriority priority) {
+        int priorityLevel = priority.ordinal();
+        int nextWeight = sendWeights[priorityLevel];
+        if (!sendBuffer.isEmpty()) {
+            HeapedPacket head = sendBuffer.peek();
+            int peekPL = head.packet.priority.ordinal();
+            int weight = head.weight;
+            int min = weight - (1 << peekPL) * peekPL + peekPL;
+
+            if (nextWeight < min) nextWeight = min + (1 << priorityLevel) * priorityLevel + priorityLevel;
+
+            sendWeights[priorityLevel] = nextWeight + (1 << priorityLevel) * priorityLevel + priorityLevel;
+        } else {
+            for (int i = 0; i < PacketPriority.NUMBER_OF_PRIORITIES.ordinal(); i++) {
+                sendWeights[i] = (1 << i) * i + i;
+            }
+        }
+        return nextWeight;
     }
 
     /***

@@ -14,7 +14,6 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
     public static final int NUMBER_OF_ORDERED_STREAMS = 32;
 
-    public boolean hasSplitPacket;
     public int splitPacketCount;
     public int splitPacketId;
     public int splitPacketIndex;
@@ -39,7 +38,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
         flag |= temp.ordinal() << 5;
 
-        if (hasSplitPacket) {
+        if (hasSplitPacket()) {
             flag |= 0b1 << 4;
         }
 
@@ -63,7 +62,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
             buf.writeByte(orderingChannel);
         }
 
-        if (hasSplitPacket) {
+        if (hasSplitPacket()) {
             buf.writeInt(splitPacketCount);
             buf.writeShort(splitPacketId);
             buf.writeInt(splitPacketIndex);
@@ -76,7 +75,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
     public void decode(ByteBuf buf) {
         byte flag = buf.readByte();
         reliability = PacketReliability.valueOf(flag >> 5);
-        hasSplitPacket = (flag >> 4 & 0b1) != 0;
+        boolean hasSplitPacket = (flag >> 4 & 0b1) != 0;
         int bitLength = buf.readShort();
 
         Validate.isTrue(!reliability.withAckReceipt(), "ACK_RECEIPT from remote system");
@@ -124,12 +123,16 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
         return data.writerIndex() - data.readerIndex();
     }
 
+    public boolean hasSplitPacket() {
+        return splitPacketCount > 0;
+    }
+
     @Override
     public String toString() {
         ToStringBuilder builder = new ToStringBuilder(this)
                 .append("reliability", reliability);
 
-        if (hasSplitPacket) {
+        if (hasSplitPacket()) {
             builder.append("splitPacketCount", splitPacketCount)
                     .append("splitPacketId", splitPacketId)
                     .append("splitPacketIndex", splitPacketIndex);
