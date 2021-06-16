@@ -19,7 +19,7 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-public class NioRakServerChannel extends AbstractNioRakChannel implements RakServerChannel {
+public final class NioRakServerChannel extends AbstractNioRakChannel implements RakServerChannel {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakServerChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);

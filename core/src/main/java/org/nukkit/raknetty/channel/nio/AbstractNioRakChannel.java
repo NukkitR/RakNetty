@@ -131,13 +131,6 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
     private class NioRakChannelOutbound extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof AddressedMessage) {
-                AddressedMessage message = (AddressedMessage) msg;
-                ByteBuf buf = udpChannel().alloc().ioBuffer();
-                message.content().encode(buf);
-                msg = new DatagramPacket(buf, message.recipient(), message.sender());
-            }
-
             udpChannel().write(msg, udpChannel().newPromise().addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
                     promise.setSuccess();

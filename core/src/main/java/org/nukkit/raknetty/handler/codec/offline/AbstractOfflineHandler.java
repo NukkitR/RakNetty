@@ -1,12 +1,15 @@
 package org.nukkit.raknetty.handler.codec.offline;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.nukkit.raknetty.channel.AddressedMessage;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
 import org.nukkit.raknetty.util.PacketUtil;
@@ -16,6 +19,16 @@ import java.net.InetSocketAddress;
 public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AbstractOfflineHandler.class);
+
+    private final Channel channel;
+
+    public AbstractOfflineHandler(Channel channel) {
+        this.channel = channel;
+    }
+
+    public Channel channel() {
+        return this.channel;
+    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -96,4 +109,16 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
     }
 
     public abstract void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage packet, InetSocketAddress sender);
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (msg instanceof AddressedMessage) {
+            AddressedMessage message = (AddressedMessage) msg;
+            ByteBuf buf = channel.alloc().ioBuffer();
+            message.content().encode(buf);
+            msg = new DatagramPacket(buf, message.recipient(), message.sender());
+        }
+
+        ctx.write(msg, promise);
+    }
 }

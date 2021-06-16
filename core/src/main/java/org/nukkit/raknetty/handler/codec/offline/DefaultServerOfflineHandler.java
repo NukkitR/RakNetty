@@ -22,14 +22,18 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
     private final static long TIMEOUT_REQUEST = TimeUnit.MILLISECONDS.toNanos(1000);
     private final static long TIMEOUT_RECENT = TimeUnit.MILLISECONDS.toNanos(100);
 
-    private final RakServerChannel serverChannel;
     private final Map<InetAddress, Long> recentlyConnected = new HashMap<>();
     private final Map<InetSocketAddress, Long> requested = new HashMap<>();
 
     private ScheduledFuture<?> updateTask;
 
     public DefaultServerOfflineHandler(RakServerChannel serverChannel) {
-        this.serverChannel = serverChannel;
+        super(serverChannel);
+    }
+
+    @Override
+    public RakServerChannel channel() {
+        return (RakServerChannel) super.channel();
     }
 
     @Override
@@ -39,14 +43,14 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
         try {
             if (msg instanceof UnconnectedPing) {
-                if (msg instanceof UnconnectedPingOpenConnections && !serverChannel.allowNewConnections()) {
+                if (msg instanceof UnconnectedPingOpenConnections && !channel().allowNewConnections()) {
                     return;
                 }
 
                 UnconnectedPing in = (UnconnectedPing) msg;
                 UnconnectedPong out = new UnconnectedPong();
                 out.sendPingTime = in.sendPingTime;
-                out.senderGuid = serverChannel.localGuid();
+                out.senderGuid = channel().localGuid();
                 // TODO: make it configurable instead of hard-coded value
                 out.response = "MCPE;RakNetty Server;428;1.16.210;0;10;12138269847474505758;Bedrock level;Survival;1;19132;19133;";
                 reply = out;
@@ -67,7 +71,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
                     IncompatibleProtocolVersion out = new IncompatibleProtocolVersion();
                     out.protocol = Message.RAKNET_PROTOCOL_VERSION;
-                    out.senderGuid = serverChannel.localGuid();
+                    out.senderGuid = channel().localGuid();
 
                     reply = out;
                     return;
@@ -79,7 +83,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
                 // reply to the client with OpenConnectionReply1
                 OpenConnectionReply1 out = new OpenConnectionReply1();
-                out.serverGuid = serverChannel.localGuid();
+                out.serverGuid = channel().localGuid();
                 out.mtuSize = in.mtuSize;
 
                 reply = out;
@@ -105,30 +109,30 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 if (isRecentlyConnected(sender)) {
                     LOGGER.debug("rejecting connection request from {}: requested too frequently", sender);
                     IpRecentlyConnected out = new IpRecentlyConnected();
-                    out.senderGuid = serverChannel.localGuid();
+                    out.senderGuid = channel().localGuid();
 
                     reply = out;
                     return;
                 }
 
                 // if the server is full
-                if (!serverChannel.allowNewConnections()) {
+                if (!channel().allowNewConnections()) {
                     LOGGER.debug("rejecting connection request from {}: server is full", sender);
                     NoFreeIncomingConnection out = new NoFreeIncomingConnection();
-                    out.senderGuid = serverChannel.localGuid();
+                    out.senderGuid = channel().localGuid();
 
                     reply = out;
                     return;
                 }
 
                 // if the address or guid has been taken by someone else
-                RakChannel channel = serverChannel.getChannel(sender);
+                RakChannel conn = channel().getChannel(sender);
                 // TODO: maybe we should check guid too, but i decided not to do that for now
                 //boolean guidInUse = serverChannel.isGuidInUse(in.clientGuid);
-                if (channel != null && channel.isActive()) {
+                if (conn != null && conn.isActive()) {
                     LOGGER.debug("rejecting connection request from {}: already connected", sender);
                     AlreadyConnected out = new AlreadyConnected();
-                    out.senderGuid = serverChannel.localGuid();
+                    out.senderGuid = channel().localGuid();
                     reply = out;
                     return;
                 }
@@ -136,13 +140,13 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 // all good, allow connection
                 LOGGER.debug("accepting connection request from {}", sender);
                 OpenConnectionReply2 out = new OpenConnectionReply2();
-                out.serverGuid = serverChannel.localGuid();
+                out.serverGuid = channel().localGuid();
                 out.clientAddress = sender;
                 out.mtuSize = in.mtuSize;
                 reply = out;
 
                 // creating new channel and add the address to the recently connected list
-                serverChannel.accept(ctx, in, sender);
+                channel().accept(ctx, in, sender);
                 recentlyConnected.put(sender.getAddress(), now);
             }
 

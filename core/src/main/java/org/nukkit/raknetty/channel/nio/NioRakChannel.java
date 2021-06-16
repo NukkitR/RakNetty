@@ -1,5 +1,6 @@
 package org.nukkit.raknetty.channel.nio;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.DatagramChannel;
@@ -14,16 +15,17 @@ import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
+import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionAttemptFailed;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionLost;
 import org.nukkit.raknetty.handler.codec.offline.DisconnectionNotification;
-import org.nukkit.raknetty.handler.codec.reliability.ConnectedPing;
-import org.nukkit.raknetty.handler.codec.reliability.ReliabilityHandler;
-import org.nukkit.raknetty.handler.codec.reliability.SlidingWindow;
+import org.nukkit.raknetty.handler.codec.reliability.*;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+
+import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 
 public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
@@ -42,8 +44,8 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
     private long nextPingTime = 0;
 
-    private final ReliabilityHandler reliabilityHandler = new ReliabilityHandler(this);
-
+    private final ReliabilityInboundHandler reliabilityIn = new ReliabilityInboundHandler(this);
+    private final ReliabilityOutboundHandler reliabilityOut = new ReliabilityOutboundHandler(this);
 
     public NioRakChannel() {
         this(null);
@@ -57,7 +59,9 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         super(parent, udpChannel);
         config = new DefaultRakChannelConfig(this, udpChannel);
 
-        pipeline().addLast("ReliabilityLayer", reliabilityHandler);
+        //pipeline().addLast("ReliabilityLayer", reliabilityHandler);
+        pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
+        pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
     }
 
     @Override
@@ -85,10 +89,34 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         updateTask = eventLoop().submit(new UpdateCycleTask());
     }
 
-    private void pingInternal(PacketReliability reliability) {
+    private void ping(PacketReliability reliability) {
         ConnectedPing ping = new ConnectedPing();
         ping.pingTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime());
-        reliabilityHandler.send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
+        send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
+    }
+
+    public void send(final ReliabilityMessage message, final PacketPriority priority, final PacketReliability reliability, final int orderingChannel) {
+        if (!eventLoop().inEventLoop()) {
+            eventLoop().submit(new Runnable() {
+                @Override
+                public void run() {
+                    NioRakChannel.this.send(message, priority, reliability, orderingChannel);
+                }
+            });
+
+        } else {
+            ByteBuf buf = alloc().ioBuffer();
+            message.encode(buf);
+
+            InternalPacket packet = new InternalPacket();
+            packet.data = buf;
+
+            packet.reliability = (reliability == null) ? PacketReliability.RELIABLE : reliability;
+            packet.priority = (priority == null) ? PacketPriority.HIGH_PRIORITY : priority;
+            packet.orderingChannel = (orderingChannel > NUMBER_OF_ORDERED_STREAMS) ? 0 : orderingChannel;
+
+            pipeline().write(packet);
+        }
     }
 
     @Override
@@ -193,15 +221,15 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
             long currentTime = System.nanoTime();
 
-            if (currentTime - reliabilityHandler.lastReliableSend() > config().getTimeout() / 2
+            if (currentTime - reliabilityOut.lastReliableSend() > config().getTimeout() / 2
                     && connectMode() == ConnectMode.CONNECTED) {
-                pingInternal(PacketReliability.RELIABLE);
+                ping(PacketReliability.RELIABLE);
             }
 
             boolean closeConnection = false;
 
             // check ACK timeout
-            if (reliabilityHandler.isAckTimeout(currentTime)) {
+            if (reliabilityOut.isAckTimeout(currentTime)) {
                 // connection is dead
                 closeConnection = true;
 
@@ -210,13 +238,13 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
                 switch (connectMode) {
                     case DISCONNECT_ASAP:
                     case DISCONNECT_ASAP_SILENTLY:
-                        if (!reliabilityHandler.isOutboundDataWaiting()) {
+                        if (!reliabilityOut.isOutboundDataWaiting()) {
                             closeConnection = true;
                         }
                         break;
 
                     case DISCONNECT_ON_NO_ACK:
-                        if (!reliabilityHandler.isAckWaiting()) {
+                        if (!reliabilityOut.isAckWaiting()) {
                             closeConnection = true;
                         }
                         break;
@@ -260,7 +288,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
             }
 
             // handle the resend queue
-            reliabilityHandler.update();
+            reliabilityOut.update();
 
             // ping if it is time to do so
             //TODO: occasional ping and lowest ping?
@@ -268,7 +296,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
                     && currentTime - nextPingTime > 0) {
 
                 nextPingTime = currentTime + 5000;
-                pingInternal(PacketReliability.UNRELIABLE);
+                ping(PacketReliability.UNRELIABLE);
 
                 // update immediately after this tick so the ping goes out right away
                 //updateImmediately();
