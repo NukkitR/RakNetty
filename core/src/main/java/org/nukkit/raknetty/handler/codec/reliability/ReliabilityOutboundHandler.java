@@ -70,7 +70,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void onAck(AcknowledgePacket ack, long timeRead) {
-        LOGGER.debug("ACK: " + ack);
+        LOGGER.debug("RECV_ACK: " + ack);
         ack.indices().forEach(datagramNumber -> {
 
             // remove if the message is sent in an unreliable way
@@ -98,7 +98,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void onNak(AcknowledgePacket nak, long timeRead) {
-        LOGGER.debug("NAK: " + nak);
+        LOGGER.debug("RECV_NAK: " + nak);
         nak.indices().forEach(datagramNumber -> {
             // ReliabilityLayer.cpp#L831
             channel.slidingWindow().onNak();
@@ -123,7 +123,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         while (!ACKs.isEmpty()) {
             // if (needsBandAs) is deprecated
-            LOGGER.debug("sndACK: {}", ACKs);
+            LOGGER.debug("SEND_ACK: {}", ACKs);
 
             ByteBuf buf = channel.alloc().ioBuffer();
             header.encode(buf);
@@ -136,7 +136,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     private void doSendNak() {
-        LOGGER.debug("sndNAK: {}", NAKs);
+        LOGGER.debug("SEND_NAK: {}", NAKs);
 
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
         DatagramHeader header = DatagramHeader.getHeader(DatagramHeader.Type.NAK);
@@ -173,7 +173,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             Validate.isTrue(packet.reliableIndex == messageNumber, "Message number mismatch");
 
             resendBuffer[arrayIndex] = null;
-            LOGGER.debug("AckRcv: {}", messageNumber);
 
             // TODO: statistic staff
 
@@ -218,10 +217,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             datagramHistory.add(header.datagramNumber, 0);
         }
 
-        // TODO: send the datagram, write to new handler
-
-        LOGGER.debug("WRITE DATAGRAM: {}", buf);
-
         channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
@@ -230,8 +225,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         // congestion control, buffer the packets before sending it out.
 
         long currentTime = System.nanoTime();
-
-        LOGGER.debug("WRITE: {}", msg);
 
         if (msg instanceof InternalPacket) {
             InternalPacket packet = (InternalPacket) msg;
@@ -274,10 +267,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             sendBuffer.add(new HeapedPacket(nextWeight(packet.priority), packet));
 
-            LOGGER.debug("ADDED TO SEND BUFFER: {}", packet);
-
         } else {
-            LOGGER.debug("OUT: {}", msg);
             ctx.write(msg, promise);
         }
     }

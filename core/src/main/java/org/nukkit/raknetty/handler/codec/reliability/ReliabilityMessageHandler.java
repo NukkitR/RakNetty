@@ -30,13 +30,13 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
 
-        LOGGER.debug("READ: {}", ByteBufUtil.prettyHexDump(buf));
+        LOGGER.debug("READ: \n{}", ByteBufUtil.prettyHexDump(buf));
 
         try {
 
             MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
             if (id == null) {
-                // it is not an valid in
+                // it is not an valid id
                 return;
             }
 

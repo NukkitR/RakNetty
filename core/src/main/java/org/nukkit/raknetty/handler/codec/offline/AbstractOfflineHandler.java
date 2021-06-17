@@ -110,18 +110,4 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
 
     public abstract void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage packet, InetSocketAddress sender);
 
-    @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-
-        //LOGGER.debug("OUT: " + msg);
-
-        if (msg instanceof AddressedMessage) {
-            AddressedMessage message = (AddressedMessage) msg;
-            ByteBuf buf = channel.alloc().ioBuffer();
-            message.content().encode(buf);
-            msg = new DatagramPacket(buf, message.recipient(), message.sender());
-        }
-
-        ctx.write(msg, promise);
-    }
 }

@@ -109,6 +109,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     }
 
     public void ping(PacketReliability reliability) {
+        LOGGER.debug("PING");
         ConnectedPing ping = new ConnectedPing();
         ping.pingTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
@@ -121,6 +122,8 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
             eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
+            LOGGER.debug("SEND: {}", message);
+
             ByteBuf buf = alloc().ioBuffer();
             message.encode(buf);
 
@@ -239,7 +242,10 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
                 if (currentTime - reliabilityOut.lastReliableSend() > TimeUnit.MILLISECONDS.toNanos(config().getTimeout() / 2)
                         && connectMode() == ConnectMode.CONNECTED) {
-                    ping(PacketReliability.RELIABLE);
+                    // send a ping when the resend list is empty so that disconnection is noticed.
+                    if (!reliabilityOut.isOutboundDataWaiting()) {
+                        ping(PacketReliability.RELIABLE);
+                    }
                 }
 
                 // check ACK timeout

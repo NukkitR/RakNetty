@@ -57,7 +57,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 return;
             }
 
-            LOGGER.debug("IN: " + msg);
+            LOGGER.debug("READ: {}", msg);
 
             if (msg instanceof OpenConnectionRequest1) {
                 OpenConnectionRequest1 in = (OpenConnectionRequest1) msg;
@@ -151,7 +151,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
         } finally {
             if (reply != null) {
-                ctx.pipeline().writeAndFlush(new AddressedMessage(reply, sender));
+                ctx.writeAndFlush(new AddressedMessage(reply, sender));
             }
         }
     }

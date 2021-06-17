@@ -141,7 +141,6 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
     }
 
     public void readPacket(ChannelHandlerContext ctx, InternalPacket packet) {
-        LOGGER.debug("Packet: " + packet);
 
         // check if we missed some reliable messages?
         if (packet.reliability.isReliable()) {
@@ -199,7 +198,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
         // reassemble if this is a split packet
         if (packet.splitPacketCount > 0) {
 
-            LOGGER.debug("Split packet: {}/{}", packet.splitPacketIndex, packet.splitPacketCount);
+            LOGGER.debug("READ: Split packet {}/{}", packet.splitPacketIndex, packet.splitPacketCount);
 
             if (!packet.reliability.isOrdered()) {
                 packet.orderingChannel = 255;

@@ -1,11 +1,14 @@
 package org.nukkit.raknetty.channel.nio;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.nukkit.raknetty.channel.AddressedMessage;
 import org.nukkit.raknetty.channel.RakServerChannel;
 
 import java.net.InetSocketAddress;
@@ -116,6 +119,14 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
     private class NioRakChannelOutbound extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+
+            if (msg instanceof AddressedMessage) {
+                AddressedMessage message = (AddressedMessage) msg;
+                ByteBuf buf = alloc().ioBuffer();
+                message.content().encode(buf);
+                msg = new DatagramPacket(buf, message.recipient(), message.sender());
+            }
+
             udpChannel().write(msg, udpChannel().newPromise().addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
                     promise.setSuccess();
