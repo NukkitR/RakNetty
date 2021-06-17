@@ -3,9 +3,7 @@ package org.nukkit.raknetty.handler.codec;
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-import javax.xml.crypto.Data;
-
-public final class DatagramHeader implements Cloneable{
+public final class DatagramHeader implements Cloneable {
 
     public static final int HEADER_LENGTH_BYTES = 2 + 3 + 4; // 2 + 3 + sizeof(float) * 1
 

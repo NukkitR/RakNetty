@@ -42,7 +42,7 @@ public class DatagramHistory {
     }
 
     public static final class Node {
-        public LinkedList<Integer> messages = new LinkedList<>( );
+        public LinkedList<Integer> messages = new LinkedList<>();
         public long timeSent;
 
         public Node(long timeSent) {

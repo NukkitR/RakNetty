@@ -1,7 +1,6 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.util.ReferenceCountUtil;
-import org.nukkit.raknetty.util.PacketUtil;
 
 import java.util.*;
 
