@@ -199,6 +199,8 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
         // reassemble if this is a split packet
         if (packet.splitPacketCount > 0) {
 
+            LOGGER.debug("Split packet: {}/{}", packet.splitPacketIndex, packet.splitPacketCount);
+
             if (!packet.reliability.isOrdered()) {
                 packet.orderingChannel = 255;
             }

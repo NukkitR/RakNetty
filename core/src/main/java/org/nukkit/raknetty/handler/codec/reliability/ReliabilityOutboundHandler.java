@@ -129,7 +129,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             header.encode(buf);
             ACKs.encode(buf, maxSize, true);
 
-            channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
+            // no need to buffer the ACK packet, send it right away
+            channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
             channel.slidingWindow().onSendAck();
         }
     }
@@ -144,7 +145,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         header.encode(buf);
         NAKs.encode(buf, maxSize, true);
 
-        channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
+        // no need to buffer the NAK packet, send it right away
+        channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     public boolean isAckTimeout(long currentTime) {
