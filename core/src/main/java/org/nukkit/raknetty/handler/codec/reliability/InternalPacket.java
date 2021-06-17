@@ -18,7 +18,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
     public int splitPacketId;
     public int splitPacketIndex;
 
-    public int reliableIndex;
+    public int reliableIndex = -1;
     public int sequencingIndex;
     public int orderingIndex;
     public int orderingChannel;
@@ -115,7 +115,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
         Validate.isTrue(bodyLength < MTUSize.MAXIMUM_MTU_SIZE, "packet length exceeds the limit");
         Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
 
-        data = buf.retainedSlice(buf.readerIndex(), bodyLength);
+        data = buf.readBytes(bodyLength);
     }
 
     @Override
@@ -128,9 +128,16 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
     }
 
     @Override
+    protected InternalPacket clone() throws CloneNotSupportedException {
+        return (InternalPacket) super.clone();
+    }
+
+
+    @Override
     public String toString() {
         ToStringBuilder builder = new ToStringBuilder(this)
-                .append("reliability", reliability);
+                .append("reliability", reliability)
+                .append("priority", priority);
 
         if (hasSplitPacket()) {
             builder.append("splitPacketCount", splitPacketCount)
@@ -162,22 +169,26 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
     @Override
     public ReferenceCounted retain() {
-        return ReferenceCountUtil.retain(data);
+        ReferenceCountUtil.retain(data);
+        return this;
     }
 
     @Override
     public ReferenceCounted retain(int increment) {
-        return ReferenceCountUtil.retain(data, increment);
+        ReferenceCountUtil.retain(data, increment);
+        return this;
     }
 
     @Override
     public ReferenceCounted touch() {
-        return ReferenceCountUtil.touch(data);
+        ReferenceCountUtil.touch(data);
+        return this;
     }
 
     @Override
     public ReferenceCounted touch(Object hint) {
-        return ReferenceCountUtil.touch(data, hint);
+        ReferenceCountUtil.touch(data, hint);
+        return this;
     }
 
     @Override

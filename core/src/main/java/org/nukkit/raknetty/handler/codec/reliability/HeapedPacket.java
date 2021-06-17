@@ -1,6 +1,6 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
-public class HeapedPacket {
+public class HeapedPacket implements Comparable<HeapedPacket> {
 
     int weight;
     InternalPacket packet;
@@ -10,4 +10,8 @@ public class HeapedPacket {
         this.packet = packet;
     }
 
+    @Override
+    public int compareTo(HeapedPacket o) {
+        return Integer.compare(weight, o.weight);
+    }
 }

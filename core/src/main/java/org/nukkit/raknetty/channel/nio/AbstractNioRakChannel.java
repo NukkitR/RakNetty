@@ -1,14 +1,11 @@
 package org.nukkit.raknetty.channel.nio;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.AddressedMessage;
 import org.nukkit.raknetty.channel.RakServerChannel;
 
 import java.net.InetSocketAddress;
@@ -28,7 +25,7 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
         this(parent, parent == null ? new NioDatagramChannel() : parent.udpChannel());
     }
 
-    protected AbstractNioRakChannel(final Channel parent, final DatagramChannel udpChannel) {
+    protected AbstractNioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent);
         this.udpChannel = udpChannel;
 
@@ -55,13 +52,6 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doClose() throws Exception {
-        udpChannel().close();
-
-        //TODO: closeConnectionInternal()
-    }
-
-    @Override
     protected void doBeginRead() throws Exception {
         throw new UnsupportedOperationException();
     }
@@ -69,11 +59,6 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean isOpen() {
-        return udpChannel().isOpen();
     }
 
     @Override

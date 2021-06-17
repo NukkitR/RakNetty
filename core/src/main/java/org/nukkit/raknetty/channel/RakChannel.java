@@ -3,6 +3,9 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.Channel;
 import io.netty.channel.socket.DatagramChannel;
+import org.nukkit.raknetty.handler.codec.PacketPriority;
+import org.nukkit.raknetty.handler.codec.PacketReliability;
+import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.reliability.SlidingWindow;
 
 import java.net.InetSocketAddress;
@@ -19,6 +22,13 @@ public interface RakChannel extends Channel {
     ConnectMode connectMode();
 
     RakChannel connectMode(ConnectMode mode);
+
+    @Override
+    RakServerChannel parent();
+
+    void ping(PacketReliability reliability);
+
+    void send(ReliabilityMessage message, PacketPriority priority, PacketReliability reliability, int orderingChannel);
 
     SlidingWindow slidingWindow();
 

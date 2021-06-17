@@ -34,11 +34,11 @@ public class RakNettyServer {
                     .channel(NioRakServerChannel.class)
                     .option(RakChannelOption.RAKNET_GUID, 123456L)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 20)
-                    .handler(new LoggingHandler(LogLevel.INFO))
+                    .handler(new LoggingHandler("RakServerLogger", LogLevel.INFO))
                     .childHandler(new ChannelInitializer<RakChannel>() {
                         @Override
                         public void initChannel(final RakChannel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.INFO));
                         }
                     });
             // Start the server.

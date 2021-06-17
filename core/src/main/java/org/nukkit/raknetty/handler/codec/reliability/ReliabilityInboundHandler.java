@@ -12,7 +12,6 @@ import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -52,21 +51,24 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
         this.channel = channel;
 
         for (int i = 0; i < NUMBER_OF_ORDERED_STREAMS; i++) {
-            orderingHeaps[i] = new PriorityQueue<>(Comparator.comparingInt(a -> a.weight));
+            //orderingHeaps[i] = new PriorityQueue<>(Comparator.comparingInt(a -> a.weight));
+            orderingHeaps[i] = new PriorityQueue<>();
         }
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelRegistered(ctx);
-
-        out = (ReliabilityOutboundHandler) ctx.pipeline().get(ReliabilityOutboundHandler.NAME);
+        super.channelActive(ctx);
         lastArrived = System.nanoTime();
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         // ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer
+
+        if (out == null) {
+            out = (ReliabilityOutboundHandler) ctx.pipeline().get(ReliabilityOutboundHandler.NAME);
+        }
 
         long timeRead = System.nanoTime();
         lastArrived = timeRead;
@@ -126,7 +128,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 while (buf.isReadable()) {
                     InternalPacket internalPacket = new InternalPacket();
                     internalPacket.header = header;
-                    internalPacket.headerLength = buf.readerIndex();
+                    //internalPacket.headerLength = buf.readerIndex();
                     internalPacket.decode(buf);
                     readPacket(ctx, internalPacket);
                     receivedCount++;

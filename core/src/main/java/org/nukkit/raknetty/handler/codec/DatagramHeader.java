@@ -3,7 +3,9 @@ package org.nukkit.raknetty.handler.codec;
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-public final class DatagramHeader {
+import javax.xml.crypto.Data;
+
+public final class DatagramHeader implements Cloneable{
 
     public static final int HEADER_LENGTH_BYTES = 2 + 3 + 4; // 2 + 3 + sizeof(float) * 1
 
@@ -111,6 +113,11 @@ public final class DatagramHeader {
         if (!isAck && !isNak) {
             datagramNumber = buf.readMediumLE();
         }
+    }
+
+    @Override
+    protected DatagramHeader clone() throws CloneNotSupportedException {
+        return (DatagramHeader) super.clone();
     }
 
     @Override

@@ -13,6 +13,7 @@ import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.channel.RakServerChannelConfig;
 import org.nukkit.raknetty.handler.codec.offline.DefaultServerOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest2;
+import org.nukkit.raknetty.handler.ipfilter.BannedIpFilter;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -25,6 +26,7 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
 
     private final RakServerChannelConfig config;
+    private final BannedIpFilter banList = new BannedIpFilter(this);
 
     Map<InetSocketAddress, RakChannel> childChannels = new HashMap<>();
 
@@ -36,6 +38,7 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
         super(null, udpChannel);
         config = new DefaultRakServerChannelConfig(this, udpChannel);
 
+        pipeline().addLast("BanList", banList);
         pipeline().addLast(new DefaultServerOfflineHandler(this));
         pipeline().addLast(new ServerMessageDispatcher());
     }
@@ -45,7 +48,8 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
         NioRakChannel channel = new NioRakChannel(this)
                 .remoteAddress(remoteAddress)
                 .remoteGuid(request.clientGuid)
-                .mtuSize(request.mtuSize);
+                .mtuSize(request.mtuSize)
+                .connectMode(RakChannel.ConnectMode.UNVERIFIED_SENDER);
 
         childChannels.put(remoteAddress, channel);
         ctx.fireChannelRead(channel);
@@ -61,13 +65,23 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
     }
 
     @Override
-    public RakChannel getChannel(InetSocketAddress address) {
+    public RakChannel getChildChannel(InetSocketAddress address) {
         // check if it is called from the thread
         if (!eventLoop().inEventLoop()) return null;
         return childChannels.get(address);
     }
 
     @Override
+    public void removeChildChannel(InetSocketAddress address) {
+        if (!eventLoop().inEventLoop()) {
+            eventLoop().submit(() -> this.removeChildChannel(address));
+            return;
+        }
+
+        Channel channel = childChannels.remove(address);
+        LOGGER.debug("Remove child channel: {}", channel);
+    }
+
     public RakChannel getChannel(long guid) {
         // check if it is called from the thread
         if (!eventLoop().inEventLoop()) return null;
@@ -76,6 +90,16 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
                 .filter(channel -> channel.remoteGuid() == guid)
                 .findFirst()
                 .orElse(null);
+    }
+
+    @Override
+    public BannedIpFilter banList() {
+        return banList;
+    }
+
+    @Override
+    protected void doClose() throws Exception {
+        udpChannel().close();
     }
 
     @Override
@@ -96,6 +120,11 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
     @Override
     public boolean isActive() {
         return udpChannel().isActive();
+    }
+
+    @Override
+    public boolean isOpen() {
+        return udpChannel().isOpen();
     }
 
     @Override
@@ -131,7 +160,7 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof DatagramPacket) {
                 InetSocketAddress address = ((DatagramPacket) msg).sender();
-                RakChannel channel = getChannel(address);
+                RakChannel channel = getChildChannel(address);
                 if (channel != null) {
                     channel.pipeline().fireChannelRead(msg);
                 }

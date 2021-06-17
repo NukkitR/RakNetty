@@ -112,6 +112,9 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+
+        //LOGGER.debug("OUT: " + msg);
+
         if (msg instanceof AddressedMessage) {
             AddressedMessage message = (AddressedMessage) msg;
             ByteBuf buf = channel.alloc().ioBuffer();

@@ -32,10 +32,12 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(true);
 
+    private boolean isOpen = true;
+
     private final RakChannelConfig config;
     private SlidingWindow slidingWindow;
     private ConnectMode connectMode = ConnectMode.NO_ACTION;
-    private long timeRegistered;
+    private long timeConnected;
 
     private InetSocketAddress remoteAddress;
     private long remoteGuid;
@@ -60,8 +62,25 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         config = new DefaultRakChannelConfig(this, udpChannel);
 
         //pipeline().addLast("ReliabilityLayer", reliabilityHandler);
-        pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
+        pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
+        pipeline().addLast(new ReliabilityMessageHandler(this));
+    }
+
+    @Override
+    public boolean isActive() {
+        return connectMode == ConnectMode.CONNECTED;
+    }
+
+    @Override
+    public boolean isOpen() {
+        return isOpen;
+    }
+
+    @Override
+    protected void doClose() throws Exception {
+        isOpen = false;
+        parent().removeChildChannel(remoteAddress());
     }
 
     @Override
@@ -75,7 +94,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         updateTask = eventLoop().submit(new UpdateCycleTask());
 
         // update time
-        timeRegistered = System.nanoTime();
+        timeConnected = System.nanoTime();
     }
 
     private void updateImmediately() {
@@ -89,20 +108,17 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         updateTask = eventLoop().submit(new UpdateCycleTask());
     }
 
-    private void ping(PacketReliability reliability) {
+    public void ping(PacketReliability reliability) {
         ConnectedPing ping = new ConnectedPing();
-        ping.pingTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime());
+        ping.pingTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
+        updateImmediately(); // update immediately so that the ping will go out right way
     }
 
+    @Override
     public void send(final ReliabilityMessage message, final PacketPriority priority, final PacketReliability reliability, final int orderingChannel) {
         if (!eventLoop().inEventLoop()) {
-            eventLoop().submit(new Runnable() {
-                @Override
-                public void run() {
-                    NioRakChannel.this.send(message, priority, reliability, orderingChannel);
-                }
-            });
+            eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
             ByteBuf buf = alloc().ioBuffer();
@@ -115,6 +131,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
             packet.priority = (priority == null) ? PacketPriority.HIGH_PRIORITY : priority;
             packet.orderingChannel = (orderingChannel > NUMBER_OF_ORDERED_STREAMS) ? 0 : orderingChannel;
 
+            //LOGGER.debug("SND: {}", packet);
             pipeline().write(packet);
         }
     }
@@ -125,7 +142,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     }
 
     @Override
-    public RakChannel connectMode(ConnectMode mode) {
+    public NioRakChannel connectMode(ConnectMode mode) {
         this.connectMode = mode;
         return this;
     }
@@ -177,13 +194,6 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     }
 
     @Override
-    public boolean isActive() {
-        if (parent() != null) return parent().isActive();
-        //TODO: check if connected
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public InetSocketAddress remoteAddress() {
         return remoteAddress;
     }
@@ -206,6 +216,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     private final class NioRakUnsafe extends AbstractUnsafe {
         @Override
         public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+            // TODO:
             if (parent() != null && parent().isActive()) {
                 NioRakChannel.this.remoteAddress = (InetSocketAddress) remoteAddress;
                 return;
@@ -219,93 +230,101 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         @Override
         public void run() {
 
-            long currentTime = System.nanoTime();
-
-            if (currentTime - reliabilityOut.lastReliableSend() > config().getTimeout() / 2
-                    && connectMode() == ConnectMode.CONNECTED) {
-                ping(PacketReliability.RELIABLE);
-            }
-
             boolean closeConnection = false;
 
-            // check ACK timeout
-            if (reliabilityOut.isAckTimeout(currentTime)) {
-                // connection is dead
-                closeConnection = true;
+            try {
+                //LOGGER.debug("UPDATE");
 
-            } else {
-                // check failure condition
-                switch (connectMode) {
-                    case DISCONNECT_ASAP:
-                    case DISCONNECT_ASAP_SILENTLY:
-                        if (!reliabilityOut.isOutboundDataWaiting()) {
-                            closeConnection = true;
-                        }
-                        break;
+                long currentTime = System.nanoTime();
 
-                    case DISCONNECT_ON_NO_ACK:
-                        if (!reliabilityOut.isAckWaiting()) {
-                            closeConnection = true;
-                        }
-                        break;
-
-                    case REQUESTED_CONNECTION:
-                    case HANDLING_CONNECTION_REQUEST:
-                    case UNVERIFIED_SENDER:
-                        if (currentTime - timeRegistered > TimeUnit.SECONDS.toNanos(10)) {
-                            closeConnection = true;
-                        }
-                        break;
-
-                    default:
-                        break;
-                }
-            }
-
-            if (closeConnection) {
-
-                Message closeMessage = null;
-                switch (connectMode) {
-                    case REQUESTED_CONNECTION:
-                        closeMessage = new ConnectionAttemptFailed();
-                        break;
-                    case CONNECTED:
-                        closeMessage = new ConnectionLost();
-                        break;
-                    case DISCONNECT_ASAP:
-                    case DISCONNECT_ON_NO_ACK:
-                        closeMessage = new DisconnectionNotification();
-                        break;
-                    default:
-                        break;
+                if (currentTime - reliabilityOut.lastReliableSend() > TimeUnit.MILLISECONDS.toNanos(config().getTimeout() / 2)
+                        && connectMode() == ConnectMode.CONNECTED) {
+                    ping(PacketReliability.RELIABLE);
                 }
 
-                if (closeMessage == null) {
-                    //TODO: fire channel read? pipeline().fireChannelRead(closeMessage);
+                // check ACK timeout
+                if (reliabilityOut.isAckTimeout(currentTime)) {
+                    // connection is dead
+                    LOGGER.debug("ACK timed out.");
+
+                    closeConnection = true;
+
+                } else {
+                    // check failure condition
+                    switch (connectMode) {
+                        case DISCONNECT_ASAP:
+                        case DISCONNECT_ASAP_SILENTLY:
+                            if (!reliabilityOut.isOutboundDataWaiting()) {
+                                closeConnection = true;
+                            }
+                            break;
+
+                        case DISCONNECT_ON_NO_ACK:
+                            if (!reliabilityOut.isAckWaiting()) {
+                                closeConnection = true;
+                            }
+                            break;
+
+                        case REQUESTED_CONNECTION:
+                        case HANDLING_CONNECTION_REQUEST:
+                        case UNVERIFIED_SENDER:
+                            if (currentTime - timeConnected > TimeUnit.SECONDS.toNanos(10)) {
+                                closeConnection = true;
+                            }
+                            break;
+
+                        default:
+                            break;
+                    }
                 }
 
-                close();
+                if (closeConnection) {
+
+                    Message closeMessage = null;
+                    switch (connectMode) {
+                        case REQUESTED_CONNECTION:
+                            closeMessage = new ConnectionAttemptFailed();
+                            break;
+                        case CONNECTED:
+                            closeMessage = new ConnectionLost();
+                            break;
+                        case DISCONNECT_ASAP:
+                        case DISCONNECT_ON_NO_ACK:
+                            closeMessage = new DisconnectionNotification();
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (closeMessage == null) {
+                        //TODO: fire channel read? pipeline().fireChannelRead(closeMessage);
+                    }
+
+                    close();
+                    return;
+                }
+
+                // handle the resend queue
+                reliabilityOut.update();
+
+                // ping if it is time to do so
+                //TODO: occasional ping and lowest ping?
+                if (connectMode == ConnectMode.CONNECTED
+                        && currentTime - nextPingTime > 0) {
+
+                    nextPingTime = currentTime + TimeUnit.SECONDS.toNanos(5); // ping every 5 seconds
+                    ping(PacketReliability.UNRELIABLE);
+                }
+
+            } catch (Exception e) {
+                LOGGER.debug(e);
+
+            } finally {
+                // schedule for next update
+                if (!closeConnection) {
+                    updateTask = eventLoop().schedule(this, 10, TimeUnit.MILLISECONDS);
+                }
             }
-
-            // handle the resend queue
-            reliabilityOut.update();
-
-            // ping if it is time to do so
-            //TODO: occasional ping and lowest ping?
-            if (connectMode == ConnectMode.CONNECTED
-                    && currentTime - nextPingTime > 0) {
-
-                nextPingTime = currentTime + 5000;
-                ping(PacketReliability.UNRELIABLE);
-
-                // update immediately after this tick so the ping goes out right away
-                //updateImmediately();
-                pipeline().flush();
-                return;
-            }
-
-            // schedule for next update
-            updateTask = eventLoop().schedule(this, 10, TimeUnit.MILLISECONDS);
         }
     }
 

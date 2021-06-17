@@ -57,7 +57,6 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 return;
             }
 
-            // i don't want to log pings and pongs
             LOGGER.debug("IN: " + msg);
 
             if (msg instanceof OpenConnectionRequest1) {
@@ -126,7 +125,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 }
 
                 // if the address or guid has been taken by someone else
-                RakChannel conn = channel().getChannel(sender);
+                RakChannel conn = channel().getChildChannel(sender);
                 // TODO: maybe we should check guid too, but i decided not to do that for now
                 //boolean guidInUse = serverChannel.isGuidInUse(in.clientGuid);
                 if (conn != null && conn.isActive()) {
@@ -152,7 +151,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
         } finally {
             if (reply != null) {
-                ctx.writeAndFlush(new AddressedMessage(reply, sender));
+                ctx.pipeline().writeAndFlush(new AddressedMessage(reply, sender));
             }
         }
     }

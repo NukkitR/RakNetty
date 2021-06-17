@@ -4,6 +4,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.DatagramChannel;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest2;
+import org.nukkit.raknetty.handler.ipfilter.BannedIpFilter;
 
 import java.net.InetSocketAddress;
 
@@ -14,9 +15,13 @@ public interface RakServerChannel extends ServerChannel {
 
     boolean allowNewConnections();
 
-    RakChannel getChannel(InetSocketAddress address);
+    RakChannel getChildChannel(InetSocketAddress address);
 
-    RakChannel getChannel(long guid);
+    BannedIpFilter banList();
+
+    void removeChildChannel(InetSocketAddress address);
+
+    //RakChannel getChannel(long guid);
 
     long localGuid();
 

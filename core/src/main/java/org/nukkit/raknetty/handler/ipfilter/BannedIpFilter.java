@@ -8,7 +8,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.AddressedMessage;
-import org.nukkit.raknetty.channel.RakChannel;
+import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionBanned;
 
 import java.net.InetAddress;
@@ -22,9 +22,9 @@ public class BannedIpFilter extends ChannelInboundHandlerAdapter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BannedIpFilter.class);
 
     private final Map<InetAddress, Long> banned = new ConcurrentHashMap<>();
-    private final RakChannel channel;
+    private final RakServerChannel channel;
 
-    public BannedIpFilter(RakChannel channel) {
+    public BannedIpFilter(RakServerChannel channel) {
         this.channel = channel;
     }
 

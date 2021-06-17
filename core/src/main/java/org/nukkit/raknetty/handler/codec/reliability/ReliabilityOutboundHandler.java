@@ -13,7 +13,6 @@ import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.handler.codec.*;
 import org.nukkit.raknetty.util.PacketUtil;
 
-import java.net.SocketAddress;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -22,7 +21,7 @@ import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBE
 
 public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityInboundHandler.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityOutboundHandler.class);
     public static final String NAME = "ReliabilityOut";
 
     private final RakChannel channel;
@@ -37,10 +36,10 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     private int unackedBytes = 0;
     private boolean bandwidthExceeded = false;
 
-    private int sendReliableIndex = 0;
     private int sendSplitId = 0;
-    private final int[] sendOrderedIndex = new int[NUMBER_OF_ORDERED_STREAMS];
-    private final int[] sendSequencedIndex = new int[NUMBER_OF_ORDERED_STREAMS];
+    private int reliableWriteIndex = 0;
+    private final int[] orderedWriteIndex = new int[NUMBER_OF_ORDERED_STREAMS];
+    private final int[] sequencedWriteIndex = new int[NUMBER_OF_ORDERED_STREAMS];
     private final int[] sendWeights = new int[4];
 
     private final PriorityQueue<HeapedPacket> sendBuffer = new PriorityQueue<>();
@@ -60,13 +59,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         for (int i = 0; i < PacketPriority.NUMBER_OF_PRIORITIES.ordinal(); i++) {
             sendWeights[i] = (1 << i) * i + i;
         }
-    }
-
-    @Override
-    public void bind(ChannelHandlerContext ctx, SocketAddress localAddress, ChannelPromise promise) throws Exception {
-        super.bind(ctx, localAddress, promise);
-
-        in = (ReliabilityInboundHandler) ctx.pipeline().get(ReliabilityInboundHandler.NAME);
     }
 
     public void sendAck(int datagramNumber) {
@@ -131,17 +123,20 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         while (!ACKs.isEmpty()) {
             // if (needsBandAs) is deprecated
+            LOGGER.debug("sndACK: {}", ACKs);
 
             ByteBuf buf = channel.alloc().ioBuffer();
             header.encode(buf);
             ACKs.encode(buf, maxSize, true);
 
-            channel.udpChannel().write(new DatagramPacket(buf, channel.remoteAddress()));
+            channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
             channel.slidingWindow().onSendAck();
         }
     }
 
     private void doSendNak() {
+        LOGGER.debug("sndNAK: {}", NAKs);
+
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
         DatagramHeader header = DatagramHeader.getHeader(DatagramHeader.Type.NAK);
 
@@ -149,11 +144,16 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         header.encode(buf);
         NAKs.encode(buf, maxSize, true);
 
-        channel.udpChannel().write(new DatagramPacket(buf, channel.remoteAddress()));
+        channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     public boolean isAckTimeout(long currentTime) {
-        return in.lastArrived() > 0 && currentTime - (in.lastArrived() + channel.config().getTimeout()) >= 0;
+        if (in == null) {
+            in = (ReliabilityInboundHandler) channel.pipeline().get(ReliabilityInboundHandler.NAME);
+        }
+
+        return in.lastArrived() > 0 &&
+                currentTime - (in.lastArrived() + TimeUnit.MILLISECONDS.toNanos(channel.config().getTimeout())) >= 0;
     }
 
     public boolean isAckWaiting() {
@@ -182,8 +182,14 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_ACKED, packet.receiptSerial));
             }
 
-            // TODO: unacknowledgedBytes?
+            if (packet.reliability.isReliable()) {
+                Validate.isTrue(unackedBytes > packet.headerLength - packet.bodyLength());
+                unackedBytes -= packet.headerLength + packet.bodyLength();
+            }
             resendList.remove(packet);
+
+            // release the memory
+            ReferenceCountUtil.release(packet);
         }
     }
 
@@ -211,12 +217,19 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         }
 
         // TODO: send the datagram, write to new handler
+
+        LOGGER.debug("WRITE DATAGRAM: {}", buf);
+
         channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         // congestion control, buffer the packets before sending it out.
+
+        long currentTime = System.nanoTime();
+
+        LOGGER.debug("WRITE: {}", msg);
 
         if (msg instanceof InternalPacket) {
             InternalPacket packet = (InternalPacket) msg;
@@ -235,13 +248,17 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             if (packet.reliability.isSequenced()) {
                 int orderingChannel = packet.orderingChannel;
-                packet.orderingIndex = sendOrderedIndex[orderingChannel];
-                packet.sequencingIndex = sendSequencedIndex[orderingChannel]++;
+                packet.orderingIndex = orderedWriteIndex[orderingChannel];
+                packet.sequencingIndex = sequencedWriteIndex[orderingChannel]++;
 
             } else if (packet.reliability.isOrdered()) {
                 int orderingChannel = packet.orderingChannel;
-                packet.orderingIndex = sendOrderedIndex[orderingChannel]++;
-                sendSequencedIndex[orderingChannel] = 0;
+                packet.orderingIndex = orderedWriteIndex[orderingChannel]++;
+                sequencedWriteIndex[orderingChannel] = 0;
+            }
+
+            if (packet.reliability.isReliable()) {
+                lastReliableSend = currentTime;
             }
 
             if (splitPacket) {
@@ -255,8 +272,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             sendBuffer.add(new HeapedPacket(nextWeight(packet.priority), packet));
 
+            LOGGER.debug("ADDED TO SEND BUFFER: {}", packet);
+
         } else {
-            super.write(ctx, msg, promise);
+            LOGGER.debug("OUT: {}", msg);
+            ctx.write(msg, promise);
         }
     }
 
@@ -312,6 +332,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         sendSplitId++;
 
+        // release the packet before split
         ReferenceCountUtil.release(packet);
     }
 
@@ -358,7 +379,10 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                 while (true) {
                     InternalPacket packet = iterator.next();
                     if (currentTime - (packet.creationTime + unreliableTimeout) >= 0) {
+                        // unreliable timed out
                         iterator.remove();
+                        // release
+                        ReferenceCountUtil.release(packet);
                     } else {
                         break;
                     }
@@ -402,7 +426,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         this.bandwidthExceeded = !sendBuffer.isEmpty();
 
         // if we have data to send or resend
-        if (!bandwidthExceeded || !resendList.isEmpty()) {
+        if (bandwidthExceeded || !resendList.isEmpty()) {
 
             InternalPacket packet;
             boolean pushed = false;
@@ -421,13 +445,14 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     Iterator<InternalPacket> iterator = resendList.iterator();
                     while (iterator.hasNext()) {
                         packet = iterator.next();
-                        Validate.isTrue(packet.header != null);
-                        Validate.isTrue(packet.header.datagramNumber >= 0);
+
+                        Validate.isTrue(packet.reliableIndex >= 0);
 
                         if (currentTime - packet.actionTime >= 0) {
                             int packetLength = packet.headerLength + packet.bodyLength();
                             if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
-                                // pushDatagram();
+
+                                // hit the MTU, push datagram
                                 writeDatagram(header, sendList);
                                 header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
                                 datagramNum++;
@@ -453,12 +478,14 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             // add the packet back into the resend list
                             resendList.add(packet);
                         } else {
-                            // push packets into a datagram
-                            writeDatagram(header, sendList);
-                            header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
-                            datagramNum++;
-                            sendList.clear();
-                            break;
+                            // the remaining packets require no action, push packets into a datagram
+                            if (datagramSizes > 0) {
+                                writeDatagram(header, sendList);
+                                header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
+                                datagramNum++;
+                                sendList.clear();
+                                break;
+                            }
                         }
                     }
 
@@ -477,18 +504,19 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     pushed = false;
 
                     // make sure the resend buffer is not overflowed
-                    if (resendBuffer[sendReliableIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
+                    if (resendBuffer[reliableWriteIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
                         break;
                     }
 
                     while (!sendBuffer.isEmpty()) {
                         // make sure the resend buffer is not overflowed
-                        if (resendBuffer[sendReliableIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
+                        if (resendBuffer[reliableWriteIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
                             break;
                         }
 
                         packet = sendBuffer.peek().packet;
-                        Validate.isTrue(packet.header.datagramNumber < 0); // is message number not assigned?
+                        Validate.isTrue(packet.header == null); // is message number not assigned?
+                        Validate.isTrue(packet.reliableIndex < 0); // is message number not assigned?
                         //Validate.isTrue(packet.bodyLength < MTUSize.MAXIMUM_MTU_SIZE);
 
                         if (packet.data == null) {
@@ -504,8 +532,10 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             break;
                         }
 
+                        sendBuffer.poll();
+
                         if (packet.reliability.isReliable()) {
-                            packet.header.datagramNumber = sendReliableIndex;
+                            packet.reliableIndex = reliableWriteIndex;
                             packet.retransmissionTime = channel.slidingWindow().getRtoForRetransmission();
                             packet.actionTime = currentTime + packet.retransmissionTime;
 
@@ -516,7 +546,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             resendList.add(packet);
                             unackedBytes += packetLength;
 
-                            sendReliableIndex++;
+                            reliableWriteIndex++;
 
                         } else if (packet.reliability == PacketReliability.UNRELIABLE_WITH_ACK_RECEIPT) {
                             int messageNumber = channel.slidingWindow().getNextDatagramNumber() + datagramNum;
@@ -546,10 +576,12 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             }
 
             bandwidthExceeded = !sendBuffer.isEmpty();
-        }
 
-        // flush the channel after each update to let the datagram going through the pipeline
-        channel.pipeline().flush();
+            // flush the channel after each update to let the datagram going through the pipeline
+            if (datagramNum > 0) {
+                channel.pipeline().flush();
+            }
+        }
     }
 
     private static final class UnreliableAckReceipt {
