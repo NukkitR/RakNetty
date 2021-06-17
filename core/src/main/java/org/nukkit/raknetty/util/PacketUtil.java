@@ -75,8 +75,9 @@ public class PacketUtil {
             for (int i = 0; i < 4; i++) {
                 int b = ~binary[i];
                 buf.writeByte(b);
-                buf.writeShort(port);
             }
+
+            buf.writeShort(port);
 
         } else if (addr instanceof Inet6Address) {
             // ip version is 6
