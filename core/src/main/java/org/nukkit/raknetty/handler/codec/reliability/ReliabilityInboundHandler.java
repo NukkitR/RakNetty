@@ -45,7 +45,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
     private final Set<Integer> hasReceived = new HashSet<>();
     private boolean needBandAs;
     private int receivedCount = 0;
-    private long lastArrived;
+    private long lastArrived = System.nanoTime();
 
     public ReliabilityInboundHandler(RakChannel channel) {
         this.channel = channel;
@@ -54,12 +54,6 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
             //orderingHeaps[i] = new PriorityQueue<>(Comparator.comparingInt(a -> a.weight));
             orderingHeaps[i] = new PriorityQueue<>();
         }
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
-        lastArrived = System.nanoTime();
     }
 
     @Override

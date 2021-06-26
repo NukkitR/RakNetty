@@ -69,7 +69,7 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
     @Override
     public boolean isActive() {
-        return connectMode == ConnectMode.CONNECTED;
+        return isOpen && connectMode == ConnectMode.CONNECTED;
     }
 
     @Override

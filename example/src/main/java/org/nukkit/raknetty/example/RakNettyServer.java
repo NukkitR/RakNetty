@@ -28,10 +28,10 @@ public class RakNettyServer {
     }
 
     public static void main(String[] args) throws Exception {
-        final ThreadFactory acceptFactory = new DefaultThreadFactory("accept");
+        final ThreadFactory acceptFactory = new DefaultThreadFactory("acceptor");
         final ThreadFactory connectFactory = new DefaultThreadFactory("connect");
         final NioEventLoopGroup acceptGroup = new NioEventLoopGroup(1, acceptFactory);
-        final NioEventLoopGroup connectGroup = new NioEventLoopGroup(1, connectFactory);
+        final NioEventLoopGroup connectGroup = new NioEventLoopGroup(connectFactory);
 
         // Configure the server.
         try {

@@ -40,42 +40,44 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
 
-            if (channel.connectMode() == ConnectMode.UNVERIFIED_SENDER) {
-                if (id == MessageIdentifier.ID_CONNECTION_REQUEST) {
-                    ConnectionRequest in = new ConnectionRequest();
-                    in.decode(buf);
-                    channel.connectMode(ConnectMode.HANDLING_CONNECTION_REQUEST);
+            ConnectMode connectMode = channel.connectMode();
 
-                    ConnectionRequestAccepted out = new ConnectionRequestAccepted();
-                    out.clientAddress = channel.remoteAddress();
-                    out.requestTime = in.requestTime;
-                    out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
-                    channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
-
-                } else {
+            // For unknown senders we only accept a few specific packets
+            if (connectMode == ConnectMode.UNVERIFIED_SENDER) {
+                if (id != MessageIdentifier.ID_CONNECTION_REQUEST) {
                     channel.close();
 
                     LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
                     channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeout());
-                }
 
-                return;
+                    return;
+                }
             }
 
             switch (id) {
                 case ID_CONNECTION_REQUEST: {
-                    if (channel.connectMode() == ConnectMode.REQUESTED_CONNECTION) {
-                        // TODO: parse
-                    } else {
-                        // TODO: reply normally, onConnectionRequest
+                    if (connectMode == ConnectMode.UNVERIFIED_SENDER || connectMode == ConnectMode.REQUESTED_CONNECTION) {
+                        ConnectionRequest in = new ConnectionRequest();
+                        in.decode(buf);
+                        channel.connectMode(ConnectMode.HANDLING_CONNECTION_REQUEST);
+
+                        ConnectionRequestAccepted out = new ConnectionRequestAccepted();
+                        out.clientAddress = channel.remoteAddress();
+                        out.requestTime = in.requestTime;
+                        out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+                        channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
                     }
                     break;
                 }
                 case ID_NEW_INCOMING_CONNECTION: {
                     if (channel.connectMode() == ConnectMode.HANDLING_CONNECTION_REQUEST) {
 
+                        // set channel state to CONNECTED
                         channel.connectMode(ConnectMode.CONNECTED);
+                        //
+                        ctx.pipeline().fireChannelActive();
+
                         channel.ping(PacketReliability.UNRELIABLE);
 
                         // TODO: parse and pass it to game
