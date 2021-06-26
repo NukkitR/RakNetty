@@ -9,9 +9,6 @@ import java.net.InetSocketAddress;
 
 public class ConnectionRequestAccepted implements ReliabilityMessage {
 
-    public static final int MAXIMUM_NUMBER_OF_INTERNAL_IDS = 10;
-    public static final InetSocketAddress UNASSIGNED_SYSTEM_ADDRESS = new InetSocketAddress("255.255.255.255", 0xFFFF);
-
     public InetSocketAddress clientAddress;
     public int systemIndex = 0;
     public InetSocketAddress[] ipList = new InetSocketAddress[MAXIMUM_NUMBER_OF_INTERNAL_IDS];

@@ -113,7 +113,6 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         ConnectedPing ping = new ConnectedPing();
         ping.pingTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
-        updateImmediately(); // update immediately so that the ping will go out right way
     }
 
     @Override
@@ -136,6 +135,10 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
             //LOGGER.debug("SND: {}", packet);
             pipeline().write(packet);
+
+            if (packet.priority == PacketPriority.IMMEDIATE_PRIORITY) {
+                updateImmediately();
+            }
         }
     }
 
