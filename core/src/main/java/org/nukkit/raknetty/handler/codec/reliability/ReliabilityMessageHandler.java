@@ -19,8 +19,14 @@ import java.util.concurrent.TimeUnit;
 public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityMessageHandler.class);
+    private static final int PING_TIMES_ARRAY_SIZE = 5;
 
     private final RakChannel channel;
+
+    private short lowestPing = Short.MAX_VALUE;
+    private final short[] pingTime = new short[PING_TIMES_ARRAY_SIZE];
+    private final long[] clockDiff = new long[PING_TIMES_ARRAY_SIZE];
+    private int pingArrayIndex = 0;
 
     public ReliabilityMessageHandler(RakChannel channel) {
         this.channel = channel;
@@ -30,7 +36,9 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
 
-        LOGGER.debug("READ: \n{}", ByteBufUtil.prettyHexDump(buf));
+        boolean release = true;
+
+        //LOGGER.debug("READ: \n{}", ByteBufUtil.prettyHexDump(buf));
 
         try {
 
@@ -61,6 +69,8 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                         in.decode(buf);
                         channel.connectMode(ConnectMode.HANDLING_CONNECTION_REQUEST);
 
+                        LOGGER.debug("CONNECTING: {}", in);
+
                         ConnectionRequestAccepted out = new ConnectionRequestAccepted();
                         out.clientAddress = channel.remoteAddress();
                         out.requestTime = in.requestTime;
@@ -75,21 +85,42 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
                         // set channel state to CONNECTED
                         channel.connectMode(ConnectMode.CONNECTED);
-                        //
                         ctx.pipeline().fireChannelActive();
 
                         channel.ping(PacketReliability.UNRELIABLE);
 
-                        // TODO: parse and pass it to game
+                        NewIncomingConnection in = new NewIncomingConnection();
+                        in.decode(buf);
+
+                        LOGGER.debug("CONNECTED: {}", in);
+
+                        onConnectedPong(in.pingTime, in.pongTime);
                     }
                     break;
                 }
                 case ID_CONNECTED_PONG: {
-                    // TODO: parse and onConnectedPong
+
+                    ConnectedPong in = new ConnectedPong();
+                    in.decode(buf);
+
+                    LOGGER.debug("PONG_RECV: {}", in);
+
+                    onConnectedPong(in.pingTime, in.pongTime);
+
                     break;
                 }
                 case ID_CONNECTED_PING: {
-                    // TODO: parse and reply pong
+
+                    ConnectedPing in = new ConnectedPing();
+                    in.decode(buf);
+
+                    LOGGER.debug("PING_RECV: {}", in);
+
+                    ConnectedPong out = new ConnectedPong();
+                    out.pingTime = in.pingTime;
+                    out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+                    channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
                     break;
                 }
                 case ID_DISCONNECTION_NOTIFICATION: {
@@ -106,11 +137,27 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     break;
                 }
                 default:
+                    // give the rest to the user
+                    release = false;
+                    ctx.fireChannelRead(msg);
                     break;
             }
         } finally {
-            ReferenceCountUtil.release(msg);
+            if (release) {
+                ReferenceCountUtil.release(msg);
+            }
         }
     }
 
+    private void onConnectedPong(long pingTime, long pongTime) {
+        long currentTime = System.nanoTime();
+        short ping = (short) Math.max((short) (currentTime - pingTime), 0);
+
+        this.pingTime[pingArrayIndex] = ping;
+        this.clockDiff[pingArrayIndex] = pongTime - (currentTime / 2 + pingTime / 2);
+
+        lowestPing = (short) Math.min(ping, lowestPing);
+
+        pingArrayIndex = (pingArrayIndex + 1) % PING_TIMES_ARRAY_SIZE;
+    }
 }

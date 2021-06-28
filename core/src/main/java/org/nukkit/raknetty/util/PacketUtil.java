@@ -30,13 +30,13 @@ public class PacketUtil {
                 binary[i] = (byte) ~buf.readByte();
             }
 
-            port = buf.readShort();
+            port = buf.readUnsignedShort();
 
         } else if (ipVersion == 6) {
             binary = new byte[16];
 
             buf.skipBytes(2);   // AF_INET6.
-            port = buf.readShort();
+            port = buf.readUnsignedShort();
             buf.skipBytes(4);   // IPv6 flow information.
             buf.readBytes(binary);
             buf.skipBytes(4);   // IPv6 scope id
