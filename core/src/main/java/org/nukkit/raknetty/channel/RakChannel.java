@@ -28,6 +28,8 @@ public interface RakChannel extends Channel {
 
     void ping(PacketReliability reliability);
 
+    int averagePing();
+
     void send(ReliabilityMessage message, PacketPriority priority, PacketReliability reliability, int orderingChannel);
 
     SlidingWindow slidingWindow();

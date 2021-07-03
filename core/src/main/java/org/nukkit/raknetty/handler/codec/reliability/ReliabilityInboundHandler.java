@@ -292,7 +292,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
     }
 
     private boolean isOlderPacket(int actualIndex, int expectingIndex) {
-        // TODO: check this with ReliabilityLayer.cpp#L2901
+        // ReliabilityLayer.cpp#L2901
         return actualIndex < expectingIndex;
     }
 

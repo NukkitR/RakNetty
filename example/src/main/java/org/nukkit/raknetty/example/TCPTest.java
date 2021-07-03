@@ -73,7 +73,9 @@ public class TCPTest {
                     }
                 });
 
-        ChannelFuture f = boot.connect("127.0.0.1", PORT).sync();
+        ChannelFuture f = boot
+                .connect("127.0.0.1", PORT)
+                .sync();
         Channel ch = f.channel();
 
         ch.writeAndFlush(Unpooled.copiedBuffer("MSG1",StandardCharsets.UTF_8)).sync();

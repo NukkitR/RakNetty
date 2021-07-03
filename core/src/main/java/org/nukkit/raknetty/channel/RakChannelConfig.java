@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.channel;
 
 import io.netty.channel.ChannelConfig;
+import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
 
 public interface RakChannelConfig extends ChannelConfig {
 
@@ -15,5 +16,9 @@ public interface RakChannelConfig extends ChannelConfig {
     int getUnreliableTimeout();
 
     RakChannelConfig setUnreliableTimeout(int milliseconds);
+
+    OfflinePingResponder getOfflinePingResponder();
+
+    RakChannelConfig setOfflinePingResponder(OfflinePingResponder responder);
 
 }

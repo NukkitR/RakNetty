@@ -8,10 +8,8 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.DefaultRakChannelConfig;
-import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.channel.RakChannelConfig;
-import org.nukkit.raknetty.channel.RakServerChannel;
+import org.apache.commons.lang3.Validate;
+import org.nukkit.raknetty.channel.*;
 import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
@@ -27,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 
-public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
+public class NioRakChannel extends AbstractRakDatagramChannel implements RakChannel {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(true);
@@ -48,23 +46,31 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
 
     private final ReliabilityInboundHandler reliabilityIn = new ReliabilityInboundHandler(this);
     private final ReliabilityOutboundHandler reliabilityOut = new ReliabilityOutboundHandler(this);
+    private final ReliabilityMessageHandler messageHandler = new ReliabilityMessageHandler(this);
 
     public NioRakChannel() {
         this(null);
     }
 
-    public NioRakChannel(final RakServerChannel parent) {
+    NioRakChannel(final RakServerChannel parent) {
         this(parent, parent == null ? new NioDatagramChannel() : parent.udpChannel());
     }
 
-    protected NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
+    NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent, udpChannel);
         config = new DefaultRakChannelConfig(this, udpChannel);
 
         //pipeline().addLast("ReliabilityLayer", reliabilityHandler);
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
         pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
-        pipeline().addLast(new ReliabilityMessageHandler(this));
+        pipeline().addLast(messageHandler);
+    }
+
+    @Override
+    public int averagePing() {
+        if (!isActive()) return -1;
+
+        return messageHandler.averagePing();
     }
 
     @Override
@@ -80,7 +86,24 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     @Override
     protected void doClose() throws Exception {
         isOpen = false;
-        parent().removeChildChannel(remoteAddress());
+        udpChannel().close();
+    }
+
+    @Override
+    protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
+        throw new UnsupportedOperationException();
+        //return false;
+    }
+
+    @Override
+    protected void doFinishConnect() throws Exception {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void doDisconnect() throws Exception {
+        //TODO:
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -133,7 +156,6 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
             packet.priority = (priority == null) ? PacketPriority.HIGH_PRIORITY : priority;
             packet.orderingChannel = (orderingChannel > NUMBER_OF_ORDERED_STREAMS) ? 0 : orderingChannel;
 
-            //LOGGER.debug("SND: {}", packet);
             pipeline().write(packet);
 
             if (packet.priority == PacketPriority.IMMEDIATE_PRIORITY) {
@@ -194,18 +216,13 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
     }
 
     @Override
-    protected void doDisconnect() throws Exception {
-        //TODO:
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public InetSocketAddress remoteAddress() {
         return remoteAddress;
     }
 
-    public NioRakChannel remoteAddress(InetSocketAddress address) {
-        this.remoteAddress = address;
+    protected NioRakChannel remoteAddress(InetSocketAddress address) {
+        Validate.isTrue(remoteAddress == null);
+        remoteAddress = address;
         return this;
     }
 
@@ -223,10 +240,6 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
         @Override
         public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
             // TODO:
-            if (parent() != null && parent().isActive()) {
-                NioRakChannel.this.remoteAddress = (InetSocketAddress) remoteAddress;
-                return;
-            }
             safeSetFailure(promise, new UnsupportedOperationException());
         }
     }
@@ -317,9 +330,10 @@ public class NioRakChannel extends AbstractNioRakChannel implements RakChannel {
                 reliabilityOut.update();
 
                 // ping if it is time to do so
-                //TODO: occasional ping and lowest ping?
+                //TODO: occasional ping?
                 if (connectMode == ConnectMode.CONNECTED
-                        && currentTime - nextPingTime > 0) {
+                        && currentTime - nextPingTime > 0
+                        && messageHandler.lowestPing() == Integer.MAX_VALUE) {
 
                     nextPingTime = currentTime + TimeUnit.SECONDS.toNanos(5); // ping every 5 seconds
                     ping(PacketReliability.UNRELIABLE);

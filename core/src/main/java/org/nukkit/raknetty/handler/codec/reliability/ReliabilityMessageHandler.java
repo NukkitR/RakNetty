@@ -1,7 +1,6 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
@@ -14,22 +13,64 @@ import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.util.PacketUtil;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityMessageHandler.class);
     private static final int PING_TIMES_ARRAY_SIZE = 5;
+    private static final int MAX_PING = 0xffff;
 
     private final RakChannel channel;
 
-    private short lowestPing = Short.MAX_VALUE;
-    private final short[] pingTime = new short[PING_TIMES_ARRAY_SIZE];
+    private int lowestPing = MAX_PING;
+    private final int[] pingTime = new int[PING_TIMES_ARRAY_SIZE];
     private final long[] clockDiff = new long[PING_TIMES_ARRAY_SIZE];
     private int pingArrayIndex = 0;
 
     public ReliabilityMessageHandler(RakChannel channel) {
         this.channel = channel;
+        Arrays.fill(pingTime, MAX_PING);
+    }
+
+    public int lowestPing() {
+        return lowestPing;
+    }
+
+    public int averagePing() {
+        if (!channel.isActive()) return -1;
+        long sum = 0;
+        int num = 0;
+
+        for (int i = 0; i < PING_TIMES_ARRAY_SIZE; i++) {
+            if (pingTime[i] == MAX_PING) break;
+
+            sum += pingTime[i];
+            num++;
+        }
+
+        if (num > 0) return (int) (sum / num) & 0xffff;
+
+        return -1;
+    }
+
+    public long clockDifference() {
+        if (!channel.isActive()) return 0;
+
+        int min = MAX_PING;
+        long diff = 0;
+
+        for (int i = 0; i < PING_TIMES_ARRAY_SIZE; i++) {
+            if (pingTime[i] == MAX_PING) break;
+
+            if (pingTime[i] < min) {
+                diff = clockDiff[i];
+                min = pingTime[i];
+            }
+        }
+
+        return diff;
     }
 
     @Override
@@ -131,9 +172,36 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                 // case ID_DETECT_LOST_CONNECTIONS:
                 // case ID_INVALID_PASSWORD:
                 case ID_CONNECTION_REQUEST_ACCEPTED: {
-                    boolean allowConnection, alreadyConnected;
 
-                    // TODO: parse and reply
+                    // if we are in a situation to wait to be connected
+                    boolean canConnect = connectMode == ConnectMode.HANDLING_CONNECTION_REQUEST ||
+                            connectMode == ConnectMode.REQUESTED_CONNECTION;
+
+                    // if we are already connected
+                    boolean hasConnected = connectMode == ConnectMode.HANDLING_CONNECTION_REQUEST;
+
+                    if (canConnect) {
+
+                        ConnectionRequestAccepted in = new ConnectionRequestAccepted();
+                        in.decode(buf);
+
+                        onConnectedPong(in.requestTime, in.replyTime);
+
+                        channel.connectMode(ConnectMode.CONNECTED);
+                        channel.pipeline().fireChannelActive();
+
+                        NewIncomingConnection out = new NewIncomingConnection();
+                        out.serverAddress = channel.localAddress();
+                        out.pingTime = in.replyTime;
+                        out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+                        channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
+
+                        if (!hasConnected) {
+                            channel.ping(PacketReliability.UNRELIABLE);
+                        }
+                    }
+
                     break;
                 }
                 default:
@@ -150,13 +218,13 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void onConnectedPong(long pingTime, long pongTime) {
-        long currentTime = System.nanoTime();
-        short ping = (short) Math.max((short) (currentTime - pingTime), 0);
+        long currentTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+        int ping = (int) Math.max(currentTime - pingTime, 0) & MAX_PING;
 
         this.pingTime[pingArrayIndex] = ping;
         this.clockDiff[pingArrayIndex] = pongTime - (currentTime / 2 + pingTime / 2);
 
-        lowestPing = (short) Math.min(ping, lowestPing);
+        lowestPing = Math.min(ping, lowestPing) & MAX_PING;
 
         pingArrayIndex = (pingArrayIndex + 1) % PING_TIMES_ARRAY_SIZE;
     }

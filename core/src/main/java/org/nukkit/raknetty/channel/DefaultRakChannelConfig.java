@@ -2,6 +2,8 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
+import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
 
 import java.util.Map;
 import java.util.Random;
@@ -14,6 +16,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     private volatile long localGuid = random.nextLong();
     private volatile int unreliableTimeout = 0;
     private volatile int timeout = 10000;
+    private volatile OfflinePingResponder responder = new DefaultOfflinePingResponder();
 
     private final DatagramChannel udpChannel;
 
@@ -36,6 +39,8 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             return (T) (Integer) unreliableTimeout;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             return (T) (Integer) timeout;
+        } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
+            return (T) responder;
         }
         return udpChannel.config().getOption(option);
     }
@@ -50,6 +55,8 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             unreliableTimeout = (int) value;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             timeout = (int) value;
+        } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
+            responder = (OfflinePingResponder) value;
         } else {
             return udpChannel.config().setOption(option, value);
         }
@@ -87,6 +94,17 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     @Override
     public RakChannelConfig setUnreliableTimeout(int milliseconds) {
         this.unreliableTimeout = milliseconds;
+        return this;
+    }
+
+    @Override
+    public OfflinePingResponder getOfflinePingResponder() {
+        return responder;
+    }
+
+    @Override
+    public RakChannelConfig setOfflinePingResponder(OfflinePingResponder responder) {
+        this.responder = responder;
         return this;
     }
 

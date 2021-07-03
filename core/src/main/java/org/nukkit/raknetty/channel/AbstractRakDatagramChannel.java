@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.channel.nio;
+package org.nukkit.raknetty.channel;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
@@ -8,39 +8,40 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.AddressedMessage;
-import org.nukkit.raknetty.channel.RakServerChannel;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-public abstract class AbstractNioRakChannel extends AbstractChannel {
+public abstract class AbstractRakDatagramChannel extends AbstractChannel {
 
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AbstractNioRakChannel.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AbstractRakDatagramChannel.class);
 
     private final DatagramChannel udpChannel;
 
-    public AbstractNioRakChannel() {
+    public AbstractRakDatagramChannel() {
         this(null);
     }
 
-    public AbstractNioRakChannel(final RakServerChannel parent) {
+    public AbstractRakDatagramChannel(final RakServerChannel parent) {
         this(parent, parent == null ? new NioDatagramChannel() : parent.udpChannel());
     }
 
-    protected AbstractNioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
+    protected AbstractRakDatagramChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent);
         this.udpChannel = udpChannel;
 
         // reading datagram from DatagramChannel
         if (parent() == null) {
-            // this is a server-side channel
             udpChannel().pipeline().addLast(new DatagramChannelInbound());
         }
 
-        // passing events to DatagramChannel
-        pipeline().addLast(new NioRakChannelOutbound());
+        // passing events to RakChannel
+        pipeline().addLast(new RakChannelOutbound());
     }
+
+    protected abstract boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception;
+
+    protected abstract void doFinishConnect() throws Exception;
 
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
@@ -55,58 +56,62 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doBeginRead() throws Exception {
+    protected void doDeregister() throws Exception {
+        udpChannel().deregister();
+    }
+
+    @Override
+    protected final void doBeginRead() throws Exception {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    protected void doWrite(ChannelOutboundBuffer in) throws Exception {
+    protected final void doWrite(ChannelOutboundBuffer in) throws Exception {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    protected boolean isCompatible(EventLoop loop) {
+    protected final boolean isCompatible(EventLoop loop) {
         return loop instanceof NioEventLoop;
     }
 
     @Override
-    public boolean isWritable() {
+    public final boolean isWritable() {
         return udpChannel().isWritable();
     }
 
     @Override
-    public long bytesBeforeWritable() {
+    public final long bytesBeforeWritable() {
         return udpChannel().bytesBeforeWritable();
     }
 
     @Override
-    public long bytesBeforeUnwritable() {
+    public final long bytesBeforeUnwritable() {
         return udpChannel().bytesBeforeUnwritable();
     }
 
-    public DatagramChannel udpChannel() {
+    @Override
+    public NioEventLoop eventLoop() {
+        return (NioEventLoop) super.eventLoop();
+    }
+
+    public final DatagramChannel udpChannel() {
         return udpChannel;
     }
 
     @Override
-    protected SocketAddress localAddress0() {
+    protected final SocketAddress localAddress0() {
         return localAddress();
     }
 
     @Override
-    public InetSocketAddress localAddress() {
+    public final InetSocketAddress localAddress() {
         return udpChannel().localAddress();
     }
 
     @Override
-    protected SocketAddress remoteAddress0() {
+    protected final SocketAddress remoteAddress0() {
         return remoteAddress();
-    }
-
-    @Override
-    public InetSocketAddress remoteAddress() {
-        // NOTE: should be override.
-        throw new UnsupportedOperationException();
     }
 
     private class DatagramChannelInbound extends ChannelInboundHandlerAdapter {
@@ -116,7 +121,7 @@ public abstract class AbstractNioRakChannel extends AbstractChannel {
         }
     }
 
-    private class NioRakChannelOutbound extends ChannelOutboundHandlerAdapter {
+    private class RakChannelOutbound extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 

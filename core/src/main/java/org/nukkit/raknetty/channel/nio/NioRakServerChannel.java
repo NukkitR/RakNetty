@@ -7,10 +7,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.DefaultRakServerChannelConfig;
-import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.channel.RakServerChannel;
-import org.nukkit.raknetty.channel.RakServerChannelConfig;
+import org.nukkit.raknetty.channel.*;
 import org.nukkit.raknetty.handler.codec.offline.DefaultServerOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest2;
 import org.nukkit.raknetty.handler.ipfilter.BannedIpFilter;
@@ -20,7 +17,7 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class NioRakServerChannel extends AbstractNioRakChannel implements RakServerChannel {
+public final class NioRakServerChannel extends AbstractRakDatagramChannel implements RakServerChannel {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakServerChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
@@ -45,7 +42,7 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
 
     @Override
     public void accept(ChannelHandlerContext ctx, OpenConnectionRequest2 request, InetSocketAddress remoteAddress) {
-        NioRakChannel channel = new NioRakChannel(this)
+        RakChannel channel = new NioRakServerConnectorChannel(this)
                 .remoteAddress(remoteAddress)
                 .remoteGuid(request.clientGuid)
                 .mtuSize(request.mtuSize)
@@ -100,6 +97,16 @@ public final class NioRakServerChannel extends AbstractNioRakChannel implements 
     @Override
     protected void doClose() throws Exception {
         udpChannel().close();
+    }
+
+    @Override
+    protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void doFinishConnect() throws Exception {
+        throw new UnsupportedOperationException();
     }
 
     @Override

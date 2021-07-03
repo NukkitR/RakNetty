@@ -15,6 +15,8 @@ import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannelOption;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
 import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
+import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.minecraft.MinecraftOfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -33,12 +35,25 @@ public class RakNettyServer {
         final NioEventLoopGroup acceptGroup = new NioEventLoopGroup(1, acceptFactory);
         final NioEventLoopGroup connectGroup = new NioEventLoopGroup(connectFactory);
 
+        final OfflinePingResponder responder = new MinecraftOfflinePingResponder()
+                .serverName("RakNetty Server")
+                .protocolVersion(440)
+                .gameVersion("1.17.2")
+                .playerCount(0)
+                .maxPlayer(20)
+                .levelName("Bedrock Level")
+                .gamemodeName("Survival")
+                .gamemodeId(1)
+                .port4(PORT)
+                .build();
+
         // Configure the server.
         try {
             final ServerBootstrap boot = new ServerBootstrap();
             boot.group(acceptGroup, connectGroup)
                     .channel(NioRakServerChannel.class)
                     .option(RakChannelOption.RAKNET_GUID, 123456L)
+                    .option(RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER, responder)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 20)
                     .handler(new LoggingHandler("RakServerLogger", LogLevel.INFO))
                     .childHandler(new ChannelInitializer<RakChannel>() {
