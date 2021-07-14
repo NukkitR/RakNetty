@@ -9,13 +9,31 @@ public interface RakChannelConfig extends ChannelConfig {
 
     RakChannelConfig setLocalGuid(long guid);
 
-    int getTimeout();
+    int[] getMtuSizes();
 
-    RakChannelConfig setTimeout(int milliseconds);
+    RakChannelConfig setMtuSizes(int[] mtuSizes);
 
-    int getUnreliableTimeout();
+    int getConnectAttempts();
 
-    RakChannelConfig setUnreliableTimeout(int milliseconds);
+    RakChannelConfig setConnectAttempts(int connectAttempts);
+
+    int getConnectIntervalMillis();
+
+    RakChannelConfig setConnectIntervalMillis(int connectIntervalMillis);
+
+    @Override
+    int getConnectTimeoutMillis();
+
+    @Override
+    RakChannelConfig setConnectTimeoutMillis(int connectTimeoutMillis);
+
+    int getTimeoutMillis();
+
+    RakChannelConfig setTimeoutMillis(int timeoutMillis);
+
+    int getUnreliableTimeoutMillis();
+
+    RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis);
 
     OfflinePingResponder getOfflinePingResponder();
 

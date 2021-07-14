@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.handler.codec.offline;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
@@ -10,7 +11,7 @@ public class UnconnectedPong implements OfflineMessage {
 
     public long sendPingTime;
     public long senderGuid;
-    public String response;
+    public ByteBuf response;
 
     @Override
     public void encode(ByteBuf buf) {
@@ -18,7 +19,7 @@ public class UnconnectedPong implements OfflineMessage {
         buf.writeLong(sendPingTime);
         buf.writeLong(senderGuid);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
-        PacketUtil.writeString(buf, response);
+        buf.writeBytes(response, response.readerIndex(), response.readableBytes());
     }
 
     @Override
@@ -27,7 +28,7 @@ public class UnconnectedPong implements OfflineMessage {
         sendPingTime = buf.readLong();
         senderGuid = buf.readLong();
         buf.skipBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID.length);
-        response = PacketUtil.readString(buf);
+        response = buf.slice();
     }
 
     @Override
@@ -35,7 +36,7 @@ public class UnconnectedPong implements OfflineMessage {
         return new ToStringBuilder(this)
                 .append("sendPingTime", sendPingTime)
                 .append("senderGuid", senderGuid)
-                .append("response", response)
+                .append("response", ByteBufUtil.prettyHexDump(response))
                 .toString();
     }
 }

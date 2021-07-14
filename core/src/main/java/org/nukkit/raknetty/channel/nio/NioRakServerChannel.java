@@ -79,7 +79,7 @@ public final class NioRakServerChannel extends AbstractRakDatagramChannel implem
         LOGGER.debug("Remove child channel: {}", channel);
     }
 
-    public RakChannel getChannel(long guid) {
+    public RakChannel getChildChannel(long guid) {
         // check if it is called from the thread
         if (!eventLoop().inEventLoop()) return null;
 

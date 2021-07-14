@@ -192,7 +192,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
         // reassemble if this is a split packet
         if (packet.splitPacketCount > 0) {
 
-            LOGGER.debug("READ: Split packet {}/{}", packet.splitPacketIndex, packet.splitPacketCount);
+            LOGGER.debug("READ: Split packet #{} {}/{}", packet.splitPacketId, packet.splitPacketIndex, packet.splitPacketCount);
 
             if (!packet.reliability.isOrdered()) {
                 packet.orderingChannel = 255;
@@ -205,6 +205,12 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 // we don't have every pieces yet
                 return;
             }
+
+
+            LOGGER.debug("READ: Split packet #{} ready", packet.splitPacketId);
+
+            // send ACKs immediately, because for large files this can take a long time
+            out.doSendAck();
         }
 
         // ordering packet

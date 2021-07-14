@@ -117,7 +117,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         });
     }
 
-    private void doSendAck() {
+    protected void doSendAck() {
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
         DatagramHeader header = DatagramHeader.getHeader(DatagramHeader.Type.ACK);
 
@@ -135,7 +135,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         }
     }
 
-    private void doSendNak() {
+    protected void doSendNak() {
         LOGGER.debug("SEND_NAK: {}", NAKs);
 
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
@@ -155,7 +155,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         }
 
         return in.lastArrived() > 0 &&
-                currentTime - (in.lastArrived() + TimeUnit.MILLISECONDS.toNanos(channel.config().getTimeout())) >= 0;
+                currentTime - (in.lastArrived() + TimeUnit.MILLISECONDS.toNanos(channel.config().getTimeoutMillis())) >= 0;
     }
 
     public boolean isAckWaiting() {
@@ -363,7 +363,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         lastUpdated = currentTime;
 
         // check unreliable timeout
-        int unreliableTimeout = channel.config().getUnreliableTimeout();
+        int unreliableTimeout = channel.config().getUnreliableTimeoutMillis();
         if (unreliableTimeout > 0) {
             if (elapsedTime - nextUnreliableCull >= 0) {
 

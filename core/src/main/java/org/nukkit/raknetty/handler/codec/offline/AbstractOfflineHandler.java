@@ -106,6 +106,6 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
         LOGGER.debug("Exception caught when handling a message", cause);
     }
 
-    public abstract void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage packet, InetSocketAddress sender);
+    public abstract void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage msg, InetSocketAddress sender);
 
 }

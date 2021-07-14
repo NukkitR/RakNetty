@@ -142,6 +142,8 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
                 , port4
                 , port6
         );
+
+        buf.writeShort(str.length());
         buf.writeCharSequence(str, StandardCharsets.UTF_8);
         return this;
     }

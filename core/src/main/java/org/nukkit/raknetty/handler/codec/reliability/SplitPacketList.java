@@ -29,7 +29,6 @@ public class SplitPacketList {
         if (packets.isEmpty()) return null;
 
         if (packets.size() == packets.stream().findFirst().get().splitPacketCount) {
-            // TODO: ack immediately
             InternalPacket packet = build(channel);
             splitChannels.remove(splitPacketId);
             return packet;

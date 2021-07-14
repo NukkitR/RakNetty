@@ -16,7 +16,7 @@ public class OpenConnectionRequest1 implements OfflineMessage {
     public void encode(ByteBuf buf) {
         PacketUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REQUEST_1);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
-        buf.writeByte(Message.RAKNET_PROTOCOL_VERSION);
+        buf.writeByte(protocol);
         PacketUtil.padWithZero(buf, mtuSize - Message.UDP_HEADER_SIZE);
     }
 

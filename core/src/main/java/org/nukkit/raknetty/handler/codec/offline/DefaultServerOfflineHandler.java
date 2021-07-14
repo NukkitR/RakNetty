@@ -42,25 +42,22 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
         long now = System.nanoTime();
 
         try {
-            if (msg instanceof UnconnectedPing) {
+            if (msg instanceof UnconnectedPing in) {
                 if (msg instanceof UnconnectedPingOpenConnections && !channel().allowNewConnections()) {
                     return;
                 }
 
-                UnconnectedPing in = (UnconnectedPing) msg;
                 UnconnectedPong out = new UnconnectedPong();
                 out.sendPingTime = in.sendPingTime;
                 out.senderGuid = channel().localGuid();
-                // TODO: make it configurable instead of hard-coded value
-                out.response = "MCPE;RakNetty Server;428;1.16.210;0;10;12138269847474505758;Bedrock level;Survival;1;19132;19133;";
+                out.response = channel().config().getOfflinePingResponder().response();
                 reply = out;
                 return;
             }
 
             LOGGER.debug("READ: {}", msg);
 
-            if (msg instanceof OpenConnectionRequest1) {
-                OpenConnectionRequest1 in = (OpenConnectionRequest1) msg;
+            if (msg instanceof OpenConnectionRequest1 in) {
 
                 // check if we are receiving a connection request from an incompatible client
                 // if true, close the connection request.
@@ -89,8 +86,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 return;
             }
 
-            if (msg instanceof OpenConnectionRequest2) {
-                OpenConnectionRequest2 in = (OpenConnectionRequest2) msg;
+            if (msg instanceof OpenConnectionRequest2 in) {
 
                 // if the client skipped OpenConnectionRequest1 or the request was timed out
                 if (!isRequestValid(sender)) {

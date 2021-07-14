@@ -1,8 +1,10 @@
 package org.nukkit.raknetty.channel.nio;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.concurrent.Future;
@@ -17,13 +19,18 @@ import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionAttemptFailed;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionLost;
 import org.nukkit.raknetty.handler.codec.offline.DisconnectionNotification;
+import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
 import org.nukkit.raknetty.handler.codec.reliability.*;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ConnectionPendingException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.nukkit.raknetty.handler.codec.Message.RAKNET_PROTOCOL_VERSION;
 import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
+import static org.nukkit.raknetty.handler.codec.reliability.ReliabilityMessageHandler.MAX_PING;
 
 public class NioRakChannel extends AbstractRakDatagramChannel implements RakChannel {
 
@@ -36,6 +43,11 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     private SlidingWindow slidingWindow;
     private ConnectMode connectMode = ConnectMode.NO_ACTION;
     private long timeConnected;
+
+    private ChannelPromise connectPromise;
+    private Future<?> connectTask;
+    private ScheduledFuture<?> connectTimeoutFuture;
+    private SocketAddress requestedRemoteAddress;
 
     private InetSocketAddress remoteAddress;
     private long remoteGuid;
@@ -60,7 +72,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         super(parent, udpChannel);
         config = new DefaultRakChannelConfig(this, udpChannel);
 
-        //pipeline().addLast("ReliabilityLayer", reliabilityHandler);
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
         pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
         pipeline().addLast(messageHandler);
@@ -91,12 +102,19 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
-        throw new UnsupportedOperationException();
-        //return false;
+        if (localAddress != null) {
+            doBind(localAddress);
+        }
+
+        if (isActive()) return true;
+
+        connectTask = eventLoop().submit(new ConnectionRequestTask());
+        return false;
     }
 
     @Override
     protected void doFinishConnect() throws Exception {
+        //TODO:
         throw new UnsupportedOperationException();
     }
 
@@ -237,26 +255,123 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     }
 
     private final class NioRakUnsafe extends AbstractUnsafe {
+
         @Override
         public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
-            // TODO:
-            safeSetFailure(promise, new UnsupportedOperationException());
+            if (!promise.setUncancellable() || !ensureOpen(promise)) {
+                return;
+            }
+
+            try {
+                if (connectPromise != null) {
+                    // Already a connect in process.
+                    throw new ConnectionPendingException();
+                }
+
+                boolean wasActive = isActive();
+                if (doConnect(remoteAddress, localAddress)) {
+                    fulfillConnectPromise(promise, wasActive);
+
+                } else {
+                    connectPromise = promise;
+                    requestedRemoteAddress = remoteAddress;
+
+                    // Schedule connect timeout.
+                    int connectTimeoutMillis = config().getConnectTimeoutMillis();
+                    if (connectTimeoutMillis > 0) {
+                        connectTimeoutFuture = eventLoop().schedule(() -> {
+                            ChannelPromise connectPromise = NioRakChannel.this.connectPromise;
+                            if (connectPromise != null && !connectPromise.isDone()
+                                    && connectPromise.tryFailure(new ConnectTimeoutException(
+                                    "connection timed out: " + remoteAddress))) {
+                                close(voidPromise());
+                            }
+                        }, connectTimeoutMillis, TimeUnit.MILLISECONDS);
+                    }
+
+                    promise.addListener((ChannelFutureListener) future -> {
+                        if (future.isCancelled()) {
+                            if (connectTimeoutFuture != null) {
+                                connectTimeoutFuture.cancel(false);
+                            }
+                            connectPromise = null;
+                            close(voidPromise());
+                        }
+                    });
+                }
+            } catch (Throwable t) {
+                promise.tryFailure(annotateConnectException(t, remoteAddress));
+                closeIfClosed();
+            }
+        }
+
+        private void fulfillConnectPromise(ChannelPromise promise, boolean wasActive) {
+            if (promise == null) {
+                // Closed via cancellation and the promise has been notified already.
+                return;
+            }
+
+            boolean active = isActive();
+            boolean promiseSet = promise.trySuccess();
+
+            // Regardless if the connection attempt was cancelled, channelActive() event should be triggered,
+            // because what happened is what happened.
+            if (!wasActive && active) {
+                pipeline().fireChannelActive();
+            }
+
+            // If a user cancelled the connection attempt, close the channel, which is followed by channelInactive().
+            if (!promiseSet) {
+                close(voidPromise());
+            }
+        }
+    }
+
+    private final class ConnectionRequestTask implements Runnable {
+
+        private int requestsMade = 0;
+
+        @Override
+        public void run() {
+
+            int attempts = config.getConnectAttempts();
+            int[] mtuSizes = config.getMtuSizes();
+            int mtuNum = mtuSizes.length;
+
+            if (requestsMade >= attempts) {
+                connectPromise.tryFailure(new ConnectTimeoutException());
+                return;
+            }
+
+            int mtuIndex = requestsMade / (attempts / mtuNum);
+            if (mtuIndex >= mtuNum) mtuIndex = mtuNum - 1;
+
+            requestsMade++;
+
+            // schedule next connection request
+            connectTask = eventLoop().schedule(this, config.getConnectIntervalMillis(), TimeUnit.MILLISECONDS);
+
+
+            if (requestedRemoteAddress instanceof InetSocketAddress address) {
+                OpenConnectionRequest1 request = new OpenConnectionRequest1();
+                request.protocol = RAKNET_PROTOCOL_VERSION;
+                request.mtuSize = mtuSizes[mtuIndex];
+
+                udpChannel().write(new AddressedMessage(request, address));
+            }
         }
     }
 
     private final class UpdateCycleTask implements Runnable {
-
         @Override
         public void run() {
 
             boolean closeConnection = false;
 
             try {
-                //LOGGER.debug("UPDATE");
-
                 long currentTime = System.nanoTime();
 
-                if (currentTime - reliabilityOut.lastReliableSend() > TimeUnit.MILLISECONDS.toNanos(config().getTimeout() / 2)
+                if (currentTime - reliabilityOut.lastReliableSend() > TimeUnit.MILLISECONDS.toNanos(config().getTimeoutMillis() / 2)
                         && connectMode() == ConnectMode.CONNECTED) {
                     // send a ping when the resend list is empty so that disconnection is noticed.
                     if (!reliabilityOut.isOutboundDataWaiting()) {
@@ -333,7 +448,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 //TODO: occasional ping?
                 if (connectMode == ConnectMode.CONNECTED
                         && currentTime - nextPingTime > 0
-                        && messageHandler.lowestPing() == Integer.MAX_VALUE) {
+                        && messageHandler.lowestPing() == MAX_PING) {
 
                     nextPingTime = currentTime + TimeUnit.SECONDS.toNanos(5); // ping every 5 seconds
                     ping(PacketReliability.UNRELIABLE);

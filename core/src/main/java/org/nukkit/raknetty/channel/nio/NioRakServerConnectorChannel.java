@@ -1,5 +1,7 @@
 package org.nukkit.raknetty.channel.nio;
 
+import io.netty.channel.ChannelPromise;
+
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
@@ -31,12 +33,12 @@ class NioRakServerConnectorChannel extends NioRakChannel {
     }
 
     @Override
-    public InetSocketAddress remoteAddress() {
-        return parent().remoteAddress();
-    }
-
-    @Override
     protected AbstractUnsafe newUnsafe() {
-        return (AbstractUnsafe) parent().unsafe();
+        return new AbstractUnsafe() {
+            @Override
+            public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 }

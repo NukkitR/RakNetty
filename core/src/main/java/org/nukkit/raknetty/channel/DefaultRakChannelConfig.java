@@ -2,9 +2,13 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.util.internal.ObjectUtil;
 import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.MTUSize;
 import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Random;
 
@@ -14,6 +18,10 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     private final static Random random = new Random(System.nanoTime());
 
     private volatile long localGuid = random.nextLong();
+    private volatile int[] mtuSizes = {MTUSize.MAXIMUM_MTU_SIZE, 1200, 576};
+    private volatile int connectAttempts = 6;
+    private volatile int connectInterval = 1000;
+    private volatile int connectTimeout = 0;
     private volatile int unreliableTimeout = 0;
     private volatile int timeout = 10000;
     private volatile OfflinePingResponder responder = new DefaultOfflinePingResponder();
@@ -35,6 +43,14 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     public <T> T getOption(ChannelOption<T> option) {
         if (option == RakChannelOption.RAKNET_GUID) {
             return (T) (Long) localGuid;
+        } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
+            return (T) mtuSizes;
+        } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
+            return (T) (Integer) connectAttempts;
+        } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
+            return (T) (Integer) connectInterval;
+        } else if (option == RakChannelOption.RAKNET_CONNECT_TIMEOUT) {
+            return (T) (Integer) connectTimeout;
         } else if (option == RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT) {
             return (T) (Integer) unreliableTimeout;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
@@ -51,6 +67,17 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
 
         if (option == RakChannelOption.RAKNET_GUID) {
             localGuid = (long) value;
+        } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
+            mtuSizes = Arrays.stream((int[]) value).boxed()
+                    .sorted(Comparator.reverseOrder())
+                    .mapToInt(i -> i)
+                    .toArray();
+        } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
+            connectAttempts = (int) value;
+        } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
+            connectInterval = (int) value;
+        } else if (option == RakChannelOption.RAKNET_CONNECT_TIMEOUT) {
+            connectTimeout = (int) value;
         } else if (option == RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT) {
             unreliableTimeout = (int) value;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
@@ -76,24 +103,76 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     }
 
     @Override
-    public int getTimeout() {
-        return timeout;
+    public int[] getMtuSizes() {
+        return mtuSizes;
     }
 
     @Override
-    public RakChannelConfig setTimeout(int milliseconds) {
-        this.timeout = milliseconds;
+    public RakChannelConfig setMtuSizes(int[] mtuSizes) {
+        this.mtuSizes = Arrays.stream(mtuSizes).boxed()
+                .sorted(Comparator.reverseOrder())
+                .mapToInt(i -> i)
+                .toArray();
         return this;
     }
 
     @Override
-    public int getUnreliableTimeout() {
+    public int getConnectAttempts() {
+        return connectAttempts;
+    }
+
+    @Override
+    public RakChannelConfig setConnectAttempts(int connectAttempts) {
+        ObjectUtil.checkPositive(connectAttempts, "connectAttempts");
+        this.connectAttempts = connectAttempts;
+        return this;
+    }
+
+    @Override
+    public int getConnectIntervalMillis() {
+        return connectInterval;
+    }
+
+    @Override
+    public RakChannelConfig setConnectIntervalMillis(int connectIntervalMillis) {
+        ObjectUtil.checkPositive(connectIntervalMillis, "connectIntervalMillis");
+        this.connectInterval = connectIntervalMillis;
+        return this;
+    }
+
+    @Override
+    public int getConnectTimeoutMillis() {
+        return connectTimeout;
+    }
+
+    @Override
+    public RakChannelConfig setConnectTimeoutMillis(int connectTimeoutMillis) {
+        ObjectUtil.checkPositiveOrZero(connectTimeoutMillis, "connectTimeoutMillis");
+        this.connectTimeout = connectTimeoutMillis;
+        return this;
+    }
+
+    @Override
+    public int getTimeoutMillis() {
+        return timeout;
+    }
+
+    @Override
+    public RakChannelConfig setTimeoutMillis(int timeoutMillis) {
+        ObjectUtil.checkPositiveOrZero(timeoutMillis, "timeoutMillis");
+        this.timeout = timeoutMillis;
+        return this;
+    }
+
+    @Override
+    public int getUnreliableTimeoutMillis() {
         return unreliableTimeout;
     }
 
     @Override
-    public RakChannelConfig setUnreliableTimeout(int milliseconds) {
-        this.unreliableTimeout = milliseconds;
+    public RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis) {
+        ObjectUtil.checkPositiveOrZero(unreliableTimeoutMillis, "unreliableTimeoutMillis");
+        this.unreliableTimeout = unreliableTimeoutMillis;
         return this;
     }
 

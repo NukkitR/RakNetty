@@ -11,7 +11,6 @@ import java.util.Map;
 public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig implements RakServerChannelConfig {
 
     private volatile int maxConnections = 20;
-    private volatile int[] mtuSizes = {MTUSize.MAXIMUM_MTU_SIZE, 1200, 576};
 
     public DefaultRakServerChannelConfig(RakServerChannel channel, DatagramChannel udpChannel) {
         super(channel, udpChannel);
@@ -27,9 +26,6 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
     public <T> T getOption(ChannelOption<T> option) {
         if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             return (T) (Integer) maxConnections;
-
-        } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
-            return (T) mtuSizes;
         }
         return super.getOption(option);
     }
@@ -40,12 +36,6 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
 
         if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             maxConnections = (int) value;
-
-        } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
-            mtuSizes = Arrays.stream((int[]) value).boxed()
-                    .sorted(Comparator.reverseOrder())
-                    .mapToInt(i -> i)
-                    .toArray();
         } else {
             return super.setOption(option, value);
         }
@@ -60,20 +50,6 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
     @Override
     public RakServerChannelConfig setMaximumConnections(int maxConnections) {
         this.maxConnections = maxConnections;
-        return this;
-    }
-
-    @Override
-    public int[] getMtuSizes() {
-        return mtuSizes;
-    }
-
-    @Override
-    public RakServerChannelConfig setMtuSizes(int[] mtuSizes) {
-        this.mtuSizes = Arrays.stream(mtuSizes).boxed()
-                .sorted(Comparator.reverseOrder())
-                .mapToInt(i -> i)
-                .toArray();
         return this;
     }
 }

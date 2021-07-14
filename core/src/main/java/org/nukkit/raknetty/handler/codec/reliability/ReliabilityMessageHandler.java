@@ -20,7 +20,7 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityMessageHandler.class);
     private static final int PING_TIMES_ARRAY_SIZE = 5;
-    private static final int MAX_PING = 0xffff;
+    public static final int MAX_PING = 0xffff;
 
     private final RakChannel channel;
 
@@ -97,7 +97,7 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     channel.close();
 
                     LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
-                    channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeout());
+                    channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeoutMillis());
 
                     return;
                 }
@@ -144,9 +144,9 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     ConnectedPong in = new ConnectedPong();
                     in.decode(buf);
 
-                    LOGGER.debug("PONG_RECV: {}", in);
-
                     onConnectedPong(in.pingTime, in.pongTime);
+
+                    LOGGER.debug("PONG_RECV: {} ms", averagePing());
 
                     break;
                 }
@@ -155,16 +155,20 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     ConnectedPing in = new ConnectedPing();
                     in.decode(buf);
 
-                    LOGGER.debug("PING_RECV: {}", in);
+                    long currentTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
+                    LOGGER.debug("PING_RECV");
 
                     ConnectedPong out = new ConnectedPong();
                     out.pingTime = in.pingTime;
-                    out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+                    out.pongTime = currentTime;
 
                     channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
                     break;
                 }
                 case ID_DISCONNECTION_NOTIFICATION: {
+                    LOGGER.debug("ID_DISCONNECTION_NOTIFICATION");
+
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
                     channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
                     break;
@@ -186,6 +190,8 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                         in.decode(buf);
 
                         onConnectedPong(in.requestTime, in.replyTime);
+
+                        LOGGER.debug("CONNECTED: {}", in);
 
                         channel.connectMode(ConnectMode.CONNECTED);
                         channel.pipeline().fireChannelActive();
