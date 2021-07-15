@@ -124,8 +124,8 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
                         // set channel state to CONNECTED
                         channel.connectMode(ConnectMode.CONNECTED);
-                        ctx.pipeline().fireChannelActive();
 
+                        // ping the remote peer
                         channel.ping(PacketReliability.UNRELIABLE);
 
                         NewIncomingConnection in = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
@@ -185,7 +185,6 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                         LOGGER.debug("CONNECTED: {}", in);
 
                         channel.connectMode(ConnectMode.CONNECTED);
-                        channel.pipeline().fireChannelActive();
 
                         NewIncomingConnection out = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
                         out.serverAddress = channel.remoteAddress();

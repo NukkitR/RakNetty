@@ -1,5 +1,6 @@
 package org.nukkit.raknetty.channel.nio;
 
+import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelPromise;
 
 import java.net.SocketAddress;
@@ -12,14 +13,8 @@ class NioRakServerConnectorChannel extends NioRakChannel {
 
     @Override
     protected void doClose() throws Exception {
-        // do not call super.doClose() as we don't want the udpChannel to be closed.
-        isOpen = false;
         parent().removeChildChannel(remoteAddress());
-    }
-
-    @Override
-    protected void doDeregister() throws Exception {
-        //NOOP, we should prevent the udpChannel from being deregistered.
+        super.doClose();
     }
 
     @Override
@@ -33,8 +28,18 @@ class NioRakServerConnectorChannel extends NioRakChannel {
     }
 
     @Override
+    protected void doDisconnect() throws Exception {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public long localGuid() {
         return parent().localGuid();
+    }
+
+    @Override
+    public ChannelMetadata metadata() {
+        return parent().metadata();
     }
 
     @Override

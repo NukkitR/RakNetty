@@ -20,7 +20,7 @@ import java.util.Map;
 public final class NioRakServerChannel extends AbstractRakDatagramChannel implements RakServerChannel {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakServerChannel.class);
-    private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+    private static final ChannelMetadata METADATA = new ChannelMetadata(false);
 
     private final RakServerChannelConfig config;
     private final BannedIpFilter banList = new BannedIpFilter(this);

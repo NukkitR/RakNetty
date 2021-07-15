@@ -2,10 +2,10 @@ package org.nukkit.raknetty.handler.codec.offline;
 
 import io.netty.buffer.ByteBuf;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
-import org.nukkit.raknetty.handler.codec.OfflineMessage;
+import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.util.PacketUtil;
 
-public class DisconnectionNotification implements OfflineMessage {
+public class DisconnectionNotification implements ReliabilityMessage {
 
     @Override
     public void encode(ByteBuf buf) {

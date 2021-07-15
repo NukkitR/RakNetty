@@ -95,7 +95,10 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     protected void doClose() throws Exception {
         isOpen = false;
-        udpChannel().close();
+
+        if (parent() == null) {
+            udpChannel().close();
+        }
     }
 
     @Override
@@ -123,14 +126,21 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     protected void doFinishConnect() throws Exception {
-        //TODO:
-        throw new UnsupportedOperationException();
+        // NOOP
     }
 
     @Override
     protected void doDisconnect() throws Exception {
-        //TODO:
-        throw new UnsupportedOperationException();
+
+        LOGGER.debug("DISCONNECTING...");
+
+        // send notification
+        DisconnectionNotification out = new DisconnectionNotification();
+        send(out, PacketPriority.LOW_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
+        updateImmediately();
+
+        // mark as dead connection
+        connectMode(ConnectMode.DISCONNECT_ASAP);
     }
 
     @Override
@@ -198,13 +208,21 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         boolean wasActive = isActive();
         connectMode = mode;
 
-        // connection in pending
-        if (connectPromise != null) {
-            if (!wasActive && isActive()) {
+        if (!wasActive && isActive()) {
+            pipeline().fireChannelActive();
+
+            // connection in pending
+            if (connectPromise != null) {
                 connectPromise.trySuccess();
             }
-        }
 
+        } else if (wasActive && !isActive()) {
+            if (!metadata().hasDisconnect()) {
+                // fire channelInactive if the channel does not has disconnection behaviour,
+                // otherwise, the channelInactive will be fired twice when disconnecting.
+                pipeline().fireChannelInactive();
+            }
+        }
         return this;
     }
 
@@ -331,6 +349,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                                 close(voidPromise());
                                 LOGGER.debug("CONNECT: FAILED");
                             } else {
+                                doFinishConnect();
                                 LOGGER.debug("CONNECT: SUCCESS");
                             }
                         }
@@ -347,12 +366,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 return;
             }
 
-            boolean active = isActive();
             boolean promiseSet = promise.trySuccess();
-
-            if (!wasActive && active) {
-                pipeline().fireChannelActive();
-            }
 
             if (!promiseSet) {
                 close(voidPromise());
@@ -473,7 +487,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                         //TODO: fire channel read? pipeline().fireChannelRead(closeMessage);
                     }
 
-                    pipeline().fireChannelInactive();
                     close();
                     return;
                 }

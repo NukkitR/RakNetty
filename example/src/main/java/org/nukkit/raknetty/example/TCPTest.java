@@ -82,6 +82,8 @@ public class TCPTest {
         Thread.sleep(200);
         ch.writeAndFlush(Unpooled.copiedBuffer("MSG2", StandardCharsets.UTF_8)).sync();
         Thread.sleep(200);
-        ch.writeAndFlush(Unpooled.copiedBuffer("CLOSE", StandardCharsets.UTF_8)).sync();
+        //ch.writeAndFlush(Unpooled.copiedBuffer("CLOSE", StandardCharsets.UTF_8)).sync();
+
+        ch.disconnect();
     }
 }

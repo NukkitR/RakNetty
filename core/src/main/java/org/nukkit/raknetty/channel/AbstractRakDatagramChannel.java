@@ -57,7 +57,9 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
 
     @Override
     protected void doDeregister() throws Exception {
-        udpChannel().deregister();
+        if (parent() == null) {
+            udpChannel().deregister();
+        }
     }
 
     @Override
