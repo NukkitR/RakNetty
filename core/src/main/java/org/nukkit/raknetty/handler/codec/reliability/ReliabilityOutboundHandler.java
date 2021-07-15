@@ -25,6 +25,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     public static final String NAME = "ReliabilityOut";
 
     private final RakChannel channel;
+    private ChannelHandlerContext ctx;
     private ReliabilityInboundHandler in;
 
     private final AcknowledgePacket NAKs = new AcknowledgePacket();
@@ -63,6 +64,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
     public void sendAck(int datagramNumber) {
         ACKs.add(datagramNumber);
+        NAKs.remove(datagramNumber); // remove it from the NAK list if previously added
     }
 
     public void sendNak(int datagramNumber) {
@@ -130,7 +132,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             ACKs.encode(buf, maxSize, true);
 
             // no need to buffer the ACK packet, send it right away
-            channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
+            //channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
+            ctx.writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
             channel.slidingWindow().onSendAck();
         }
     }
@@ -146,7 +149,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         NAKs.encode(buf, maxSize, true);
 
         // no need to buffer the NAK packet, send it right away
-        channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
+        //channel.pipeline().writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
+        ctx.writeAndFlush(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     public boolean isAckTimeout(long currentTime) {
@@ -198,7 +202,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         return lastReliableSend;
     }
 
-    public void writeDatagram(DatagramHeader header, List<InternalPacket> packets) {
+    private void writeDatagram(DatagramHeader header, List<InternalPacket> packets) {
         Validate.isTrue(!packets.isEmpty());
 
         ByteBuf buf = channel.alloc().ioBuffer();
@@ -219,7 +223,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             datagramHistory.add(header.datagramNumber, 0);
         }
 
-        channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
+        ctx.write(new DatagramPacket(buf, channel.remoteAddress()));
+        //channel.pipeline().write(new DatagramPacket(buf, channel.remoteAddress()));
     }
 
     @Override
@@ -227,6 +232,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         // congestion control, buffer the packets before sending it out.
 
         long currentTime = System.nanoTime();
+        this.ctx = ctx;
 
         if (msg instanceof InternalPacket packet) {
 
@@ -258,9 +264,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             }
 
             if (splitPacket) {
-
                 LOGGER.debug("SPLIT: body length {} is greater than the maximum size {}", packet.bodyLength(), maxSize);
-
                 splitPacket(packet);
                 return;
             }
@@ -359,6 +363,9 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     public void update() {
 
         long currentTime = System.nanoTime();
+
+        ctx = channel.pipeline().context(this);
+        Validate.isTrue(ctx != null);
 
         // update time
         if (currentTime <= lastUpdated) {
@@ -604,7 +611,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             // flush the channel after each update to let the datagram going through the pipeline
             if (datagramNum > 0) {
-                channel.pipeline().flush();
+                //channel.pipeline().flush();
+                ctx.flush();
             }
         }
     }

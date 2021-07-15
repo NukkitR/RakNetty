@@ -8,12 +8,18 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.nukkit.raknetty.channel.RakChannelOption;
 import org.nukkit.raknetty.channel.nio.NioRakChannel;
 
 public class BedrockClient {
 
     static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BedrockClient.class);
+
+    static {
+        ToStringBuilder.setDefaultStyle(ToStringStyle.SHORT_PREFIX_STYLE);
+    }
 
     public static void main(String[] args) throws Exception {
         final NioEventLoopGroup workGroup = new NioEventLoopGroup();
@@ -36,7 +42,7 @@ public class BedrockClient {
                         }
                     });
             // Start the server.
-            final ChannelFuture future = boot.connect("kk.rekonquer.com", 19132).sync();
+            final ChannelFuture future = boot.connect("play.lbsg.net", 19132).sync();
             LOGGER.info("RakNetty client is connected successfully.");
 
             // Disconnect the client from the server after a few seconds

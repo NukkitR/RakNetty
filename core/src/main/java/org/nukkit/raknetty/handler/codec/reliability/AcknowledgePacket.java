@@ -19,6 +19,10 @@ public class AcknowledgePacket extends InternalPacket {
         indices.add(index);
     }
 
+    public void remove(int index) {
+        indices.remove(index);
+    }
+
     public void clear() {
         indices.clear();
     }

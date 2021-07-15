@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.util.PacketUtil;
@@ -44,5 +45,16 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
         }
         requestTime = buf.readLong();
         replyTime = buf.readLong();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("clientAddress", clientAddress)
+                .append("systemIndex", systemIndex)
+                .append("ipList", ipList)
+                .append("requestTime", requestTime)
+                .append("replyTime", replyTime)
+                .toString();
     }
 }

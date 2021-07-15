@@ -1,13 +1,15 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
+import org.nukkit.raknetty.channel.ReliableMessageEnvelop;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
@@ -16,7 +18,7 @@ import org.nukkit.raknetty.util.PacketUtil;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
+public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityMessageHandler.class);
     private static final int PING_TIMES_ARRAY_SIZE = 5;
@@ -159,8 +161,7 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
                 }
                 case ID_DISCONNECTION_NOTIFICATION -> {
-                    LOGGER.debug("ID_DISCONNECTION_NOTIFICATION");
-
+                    LOGGER.debug("READ: ID_DISCONNECTION_NOTIFICATION");
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
                     channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
                 }
@@ -223,5 +224,22 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
         lowestPing = Math.min(ping, lowestPing) & MAX_PING;
 
         pingArrayIndex = (pingArrayIndex + 1) % PING_TIMES_ARRAY_SIZE;
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        ReliableMessageEnvelop envelop = (ReliableMessageEnvelop) msg;
+
+        ByteBuf buf = ctx.alloc().ioBuffer();
+        envelop.message().encode(buf);
+
+        InternalPacket packet = new InternalPacket();
+        packet.data = buf;
+
+        packet.reliability = envelop.reliability();
+        packet.priority = envelop.priority();
+        packet.orderingChannel = envelop.orderingChannel();
+
+        ctx.write(packet);
     }
 }

@@ -12,7 +12,6 @@ import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.reliability.ConnectionRequest;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
@@ -21,9 +20,8 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
 
     //private final SocketAddress remoteAddress;
 
-    public DefaultClientOfflineHandler(RakChannel channel, SocketAddress requestedRemoteAddress) {
+    public DefaultClientOfflineHandler(RakChannel channel) {
         super(channel);
-        //this.remoteAddress = channel.remoteAddress();
     }
 
     @Override

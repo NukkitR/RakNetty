@@ -32,7 +32,7 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
 
         // reading datagram from DatagramChannel
         if (parent() == null) {
-            udpChannel().pipeline().addLast(new DatagramChannelInbound());
+            udpChannel().pipeline().addLast(new DatagramChannelHandler());
         }
 
         // passing events to RakChannel
@@ -116,23 +116,27 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
         return remoteAddress();
     }
 
-    private class DatagramChannelInbound extends ChannelInboundHandlerAdapter {
+    private class DatagramChannelHandler extends ChannelDuplexHandler {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             pipeline().fireChannelRead(msg);
         }
-    }
 
-    private class RakChannelOutbound extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-
             if (msg instanceof AddressedMessage message) {
                 ByteBuf buf = alloc().ioBuffer();
                 message.content().encode(buf);
                 msg = new DatagramPacket(buf, message.recipient(), message.sender());
             }
 
+            ctx.write(msg, promise);
+        }
+    }
+
+    private class RakChannelOutbound extends ChannelOutboundHandlerAdapter {
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
             udpChannel().write(msg, udpChannel().newPromise().addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
                     promise.setSuccess();
