@@ -29,7 +29,7 @@ public class BedrockClient {
                     .option(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                     .handler(new LoggingHandler("RakLogger", LogLevel.INFO));
             // Start the server.
-            final ChannelFuture future = boot.connect("kk.rekonquer.com", 19132).sync();
+            final ChannelFuture future = boot.connect("play.lbsg.net", 19132).sync();
 
             LOGGER.info("RakNetty client is connected successfully.");
 

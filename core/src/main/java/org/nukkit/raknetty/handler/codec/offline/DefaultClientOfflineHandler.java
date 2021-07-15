@@ -59,9 +59,6 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
 
         if (msg instanceof OpenConnectionReply1 in) {
 
-            // update the channel's mtu size
-            channel().mtuSize(in.mtuSize);
-
             OpenConnectionRequest2 out = new OpenConnectionRequest2();
             out.serverAddress = sender;
             out.mtuSize = in.mtuSize;
@@ -71,8 +68,11 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
             return;
         }
 
-        if (msg instanceof OpenConnectionReply2) {
+        if (msg instanceof OpenConnectionReply2 in) {
             channel().connectMode(RakChannel.ConnectMode.REQUESTED_CONNECTION);
+
+            // update the channel's mtu size
+            channel().mtuSize(in.mtuSize);
 
             ConnectionRequest out = new ConnectionRequest();
             out.clientGuid = channel().localGuid();

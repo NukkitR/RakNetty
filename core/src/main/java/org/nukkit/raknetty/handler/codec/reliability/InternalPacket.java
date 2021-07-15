@@ -68,7 +68,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
             buf.writeInt(splitPacketIndex);
         }
 
-        buf.writeBytes(data);
+        buf.writeBytes(data, data.readerIndex(), data.writerIndex());
     }
 
     @Override

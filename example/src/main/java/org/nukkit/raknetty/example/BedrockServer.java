@@ -58,7 +58,7 @@ public class BedrockServer {
 
             // Setup the offline responder
             final OfflinePingResponder responder = new MinecraftOfflinePingResponder(channel4, null)
-                    .serverName("RakNetty Server")
+                    .serverName("Bedrock Server by RakNetty")
                     .protocolVersion(440)
                     .gameVersion("1.17.2")
                     .playerCount(0)

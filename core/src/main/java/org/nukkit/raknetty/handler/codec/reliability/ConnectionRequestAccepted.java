@@ -39,6 +39,7 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
         clientAddress = PacketUtil.readAddress(buf);
         systemIndex = buf.readShort();
         for (int i = 0; i < ipList.length; i++) {
+            if (buf.readableBytes() <= 16) break;
             ipList[i] = PacketUtil.readAddress(buf);
         }
         requestTime = buf.readLong();

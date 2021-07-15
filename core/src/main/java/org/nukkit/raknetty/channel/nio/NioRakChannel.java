@@ -371,6 +371,10 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             int[] mtuSizes = config.getMtuSizes();
             int mtuNum = mtuSizes.length;
 
+            if (connectMode() == ConnectMode.REQUESTED_CONNECTION || connectMode() == ConnectMode.CONNECTED) {
+                return;
+            }
+
             if (requestsMade >= attempts) {
                 connectPromise.tryFailure(new ConnectTimeoutException());
                 return;

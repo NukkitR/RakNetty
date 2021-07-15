@@ -199,6 +199,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void writeDatagram(DatagramHeader header, List<InternalPacket> packets) {
+        Validate.isTrue(!packets.isEmpty());
+
         ByteBuf buf = channel.alloc().ioBuffer();
 
         header.datagramNumber = channel.slidingWindow().increaseDatagramNumber();
@@ -436,14 +438,16 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             int transmissionBandwidth = channel.slidingWindow().getTransmissionBandwidth(unackedBytes, bandwidthExceeded);
             int retransmissionBandwidth = channel.slidingWindow().getRetransmissionBandwidth(unackedBytes);
             int datagramSizes = 0; // size of datagram so far
+            int totalSize = 0; // size of all datagram so far
             int datagramNum = 0; // number of datagram to be sent
 
             if (transmissionBandwidth > 0 || retransmissionBandwidth > 0) {
 
                 List<InternalPacket> sendList = new ArrayList<>(); // list of packets to be send
+                List<InternalPacket> addToResendList = new LinkedList<>(); // list of packets to be resend
 
                 // keep filling datagrams until we exceed the retransmission bandwidth
-                while (datagramSizes < retransmissionBandwidth) {
+                while (totalSize < retransmissionBandwidth) {
                     Iterator<InternalPacket> iterator = resendList.iterator();
                     while (iterator.hasNext()) {
                         packet = iterator.next();
@@ -453,20 +457,24 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         if (currentTime - packet.actionTime >= 0) {
                             int packetLength = packet.headerLength + packet.bodyLength();
                             if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
-
                                 // hit the MTU, push datagram
+                                Validate.isTrue(datagramSizes > 0);
+                                Validate.isTrue(packetLength < MTUSize.MAXIMUM_MTU_SIZE);
+
                                 writeDatagram(header, sendList);
                                 header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
                                 datagramNum++;
+                                datagramSizes = 0;
+                                sendList.clear();
                                 break;
                             }
 
                             // remove the packet from the resend list head
                             iterator.remove();
-                            LOGGER.debug("Resending reliable #{}", packet.reliableIndex);
 
                             // push packet, see ReliabilityLayer::PushPacket
                             datagramSizes += packetLength;
+                            totalSize += packetLength;
                             Validate.isTrue(datagramSizes < MTUSize.MAXIMUM_MTU_SIZE - UDP_HEADER_SIZE);
                             sendList.add(packet);
                             packet.timeSent++;
@@ -475,34 +483,43 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             packet.retransmissionTime = channel.slidingWindow().getRtoForRetransmission();
                             packet.actionTime = currentTime + packet.retransmissionTime;
 
+                            LOGGER.debug("Resending reliable #{} (rto: {}ms)", packet.reliableIndex, TimeUnit.NANOSECONDS.toMillis(packet.retransmissionTime));
+
                             pushed = true;
 
                             // add the packet back into the resend list
-                            resendList.add(packet);
+                            addToResendList.add(packet);
                         } else {
                             // the remaining packets require no action, push packets into a datagram
-                            if (datagramSizes > 0) {
-                                writeDatagram(header, sendList);
-                                header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
-                                datagramNum++;
-                                sendList.clear();
-                                break;
-                            }
+                            break;
                         }
+                    }
+
+                    // if we have remaining packets, push into a datagram
+                    if (datagramSizes > 0) {
+                        writeDatagram(header, sendList);
+                        header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
+                        datagramNum++;
+                        datagramSizes = 0;
+                        sendList.clear();
+                        break;
                     }
 
                     if (!pushed) break;
                 }
+
+                // packets which have been marked to be re-sent, add them back into the list
+                resendList.addAll(addToResendList);
+                addToResendList.clear();
             }
 
-            if (datagramSizes < transmissionBandwidth) {
+            if (totalSize < transmissionBandwidth) {
 
                 List<InternalPacket> sendList = new ArrayList<>();
-
-                datagramSizes = 0;
+                totalSize = 0;
 
                 // check if the resend buffer is overflowed?
-                while (datagramSizes < transmissionBandwidth) {
+                while (totalSize < transmissionBandwidth) {
                     pushed = false;
 
                     // make sure the resend buffer is not overflowed
@@ -531,6 +548,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
                         if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
                             // hit MTU, stop pushing packets
+                            Validate.isTrue(datagramSizes > 0);
+                            Validate.isTrue(packetLength < MTUSize.MAXIMUM_MTU_SIZE);
                             break;
                         }
 
@@ -560,6 +579,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
                         // push packet, see ReliabilityLayer::PushPacket
                         datagramSizes += packetLength;
+                        totalSize += packetLength;
                         Validate.isTrue(datagramSizes < MTUSize.MAXIMUM_MTU_SIZE - UDP_HEADER_SIZE);
                         sendList.add(packet);
                         packet.timeSent++;
@@ -575,6 +595,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     writeDatagram(header, sendList);
                     header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
                     datagramNum++;
+                    datagramSizes = 0;
                     sendList.clear();
                 }
             }

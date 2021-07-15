@@ -79,29 +79,29 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
         boolean release = true;
 
+        MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
+
+        ConnectMode connectMode = channel.connectMode();
+
+        // For unknown senders we only accept a few specific packets
+        if (connectMode == ConnectMode.UNVERIFIED_SENDER) {
+            if (id != MessageIdentifier.ID_CONNECTION_REQUEST) {
+                channel.close();
+
+                LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
+                channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeoutMillis());
+
+                return;
+            }
+        }
+
+        // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
+        if (id == null) {
+            id = MessageIdentifier.ID_USER_PACKET_ENUM;
+        }
+
+        // try to decode
         try {
-
-            MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
-
-            ConnectMode connectMode = channel.connectMode();
-
-            // For unknown senders we only accept a few specific packets
-            if (connectMode == ConnectMode.UNVERIFIED_SENDER) {
-                if (id != MessageIdentifier.ID_CONNECTION_REQUEST) {
-                    channel.close();
-
-                    LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
-                    channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeoutMillis());
-
-                    return;
-                }
-            }
-
-            // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
-            if (id == null) {
-                id = MessageIdentifier.ID_USER_PACKET_ENUM;
-            }
-
             switch (id) {
                 case ID_CONNECTION_REQUEST -> {
                     if (connectMode == ConnectMode.UNVERIFIED_SENDER || connectMode == ConnectMode.REQUESTED_CONNECTION) {
@@ -205,6 +205,8 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     ctx.fireChannelRead(msg);
                 }
             }
+        } catch (Exception e) {
+            LOGGER.debug("READ: bad packet {} from {}", id, channel.remoteAddress());
         } finally {
             if (release) {
                 ReferenceCountUtil.release(msg);
