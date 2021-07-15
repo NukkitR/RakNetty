@@ -14,7 +14,7 @@ public class SlidingWindow {
 
 
     public static final int UDP_HEADER_SIZE = 28;
-    public static final long SYN = TimeUnit.MICROSECONDS.toNanos(10000);
+    public static final long SYN = TimeUnit.MILLISECONDS.toNanos(10);
     public static final double UNSET_TIME_NS = -1.0d;
 
     private int mtuSize;
@@ -36,7 +36,7 @@ public class SlidingWindow {
     private boolean isContinuousSend = false;
 
     public SlidingWindow(int mtuSize) {
-        this.setMtu(mtuSize);
+        this.setMtu(mtuSize - SlidingWindow.UDP_HEADER_SIZE);
         cwnd = this.mtuSize;
     }
 

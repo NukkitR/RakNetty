@@ -3,6 +3,7 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.Channel;
 import io.netty.channel.socket.DatagramChannel;
+import org.nukkit.raknetty.channel.nio.NioRakChannel;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
@@ -18,6 +19,8 @@ public interface RakChannel extends Channel {
     long remoteGuid();
 
     int mtuSize();
+
+    NioRakChannel mtuSize(int mtuSize);
 
     ConnectMode connectMode();
 

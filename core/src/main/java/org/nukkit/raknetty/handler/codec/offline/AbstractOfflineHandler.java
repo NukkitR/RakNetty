@@ -33,8 +33,7 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
         boolean release = true;
 
         try {
-            if (msg instanceof DatagramPacket) {
-                DatagramPacket packet = (DatagramPacket) msg;
+            if (msg instanceof DatagramPacket packet) {
                 ByteBuf buf = packet.content();
                 InetSocketAddress sender = packet.sender();
 

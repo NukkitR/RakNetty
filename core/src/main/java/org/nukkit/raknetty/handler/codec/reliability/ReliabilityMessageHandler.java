@@ -79,15 +79,9 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
         boolean release = true;
 
-        //LOGGER.debug("READ: \n{}", ByteBufUtil.prettyHexDump(buf));
-
         try {
 
             MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
-            if (id == null) {
-                // it is not an valid id
-                return;
-            }
 
             ConnectMode connectMode = channel.connectMode();
 
@@ -103,8 +97,13 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                 }
             }
 
+            // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
+            if (id == null) {
+                id = MessageIdentifier.ID_USER_PACKET_ENUM;
+            }
+
             switch (id) {
-                case ID_CONNECTION_REQUEST: {
+                case ID_CONNECTION_REQUEST -> {
                     if (connectMode == ConnectMode.UNVERIFIED_SENDER || connectMode == ConnectMode.REQUESTED_CONNECTION) {
                         ConnectionRequest in = new ConnectionRequest();
                         in.decode(buf);
@@ -112,16 +111,15 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
                         LOGGER.debug("CONNECTING: {}", in);
 
-                        ConnectionRequestAccepted out = new ConnectionRequestAccepted();
+                        ConnectionRequestAccepted out = new ConnectionRequestAccepted(channel.config().getMaximumNumberOfInternalIds());
                         out.clientAddress = channel.remoteAddress();
                         out.requestTime = in.requestTime;
                         out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
                     }
-                    break;
                 }
-                case ID_NEW_INCOMING_CONNECTION: {
+                case ID_NEW_INCOMING_CONNECTION -> {
                     if (channel.connectMode() == ConnectMode.HANDLING_CONNECTION_REQUEST) {
 
                         // set channel state to CONNECTED
@@ -130,28 +128,23 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
                         channel.ping(PacketReliability.UNRELIABLE);
 
-                        NewIncomingConnection in = new NewIncomingConnection();
+                        NewIncomingConnection in = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
                         in.decode(buf);
 
                         LOGGER.debug("CONNECTED: {}", in);
 
                         onConnectedPong(in.pingTime, in.pongTime);
                     }
-                    break;
                 }
-                case ID_CONNECTED_PONG: {
-
+                case ID_CONNECTED_PONG -> {
                     ConnectedPong in = new ConnectedPong();
                     in.decode(buf);
 
                     onConnectedPong(in.pingTime, in.pongTime);
 
                     LOGGER.debug("PONG_RECV: {} ms", averagePing());
-
-                    break;
                 }
-                case ID_CONNECTED_PING: {
-
+                case ID_CONNECTED_PING -> {
                     ConnectedPing in = new ConnectedPing();
                     in.decode(buf);
 
@@ -164,18 +157,16 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                     out.pongTime = currentTime;
 
                     channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
-                    break;
                 }
-                case ID_DISCONNECTION_NOTIFICATION: {
+                case ID_DISCONNECTION_NOTIFICATION -> {
                     LOGGER.debug("ID_DISCONNECTION_NOTIFICATION");
 
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
                     channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
-                    break;
                 }
                 // case ID_DETECT_LOST_CONNECTIONS:
                 // case ID_INVALID_PASSWORD:
-                case ID_CONNECTION_REQUEST_ACCEPTED: {
+                case ID_CONNECTION_REQUEST_ACCEPTED -> {
 
                     // if we are in a situation to wait to be connected
                     boolean canConnect = connectMode == ConnectMode.HANDLING_CONNECTION_REQUEST ||
@@ -186,7 +177,7 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
 
                     if (canConnect) {
 
-                        ConnectionRequestAccepted in = new ConnectionRequestAccepted();
+                        ConnectionRequestAccepted in = new ConnectionRequestAccepted(channel.config().getMaximumNumberOfInternalIds());
                         in.decode(buf);
 
                         onConnectedPong(in.requestTime, in.replyTime);
@@ -196,25 +187,23 @@ public class ReliabilityMessageHandler extends ChannelInboundHandlerAdapter {
                         channel.connectMode(ConnectMode.CONNECTED);
                         channel.pipeline().fireChannelActive();
 
-                        NewIncomingConnection out = new NewIncomingConnection();
-                        out.serverAddress = channel.localAddress();
+                        NewIncomingConnection out = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
+                        out.serverAddress = channel.remoteAddress();
                         out.pingTime = in.replyTime;
                         out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
-                        channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
+                        channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
 
                         if (!hasConnected) {
                             channel.ping(PacketReliability.UNRELIABLE);
                         }
                     }
-
-                    break;
                 }
-                default:
+                default -> {
                     // give the rest to the user
                     release = false;
                     ctx.fireChannelRead(msg);
-                    break;
+                }
             }
         } finally {
             if (release) {

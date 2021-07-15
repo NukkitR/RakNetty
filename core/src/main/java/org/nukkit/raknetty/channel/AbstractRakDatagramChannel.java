@@ -125,8 +125,7 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 
-            if (msg instanceof AddressedMessage) {
-                AddressedMessage message = (AddressedMessage) msg;
+            if (msg instanceof AddressedMessage message) {
                 ByteBuf buf = alloc().ioBuffer();
                 message.content().encode(buf);
                 msg = new DatagramPacket(buf, message.recipient(), message.sender());

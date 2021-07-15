@@ -35,6 +35,10 @@ public interface RakChannelConfig extends ChannelConfig {
 
     RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis);
 
+    int getMaximumNumberOfInternalIds();
+
+    RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds);
+
     OfflinePingResponder getOfflinePingResponder();
 
     RakChannelConfig setOfflinePingResponder(OfflinePingResponder responder);

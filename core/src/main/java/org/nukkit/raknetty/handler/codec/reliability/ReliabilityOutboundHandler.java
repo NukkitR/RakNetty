@@ -226,8 +226,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         long currentTime = System.nanoTime();
 
-        if (msg instanceof InternalPacket) {
-            InternalPacket packet = (InternalPacket) msg;
+        if (msg instanceof InternalPacket packet) {
 
             int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
             boolean splitPacket = packet.bodyLength() > maxSize;
@@ -257,6 +256,9 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             }
 
             if (splitPacket) {
+
+                LOGGER.debug("SPLIT: body length {} is greater than the maximum size {}", packet.bodyLength(), maxSize);
+
                 splitPacket(packet);
                 return;
             }
@@ -264,6 +266,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             if (!packet.reliability.isReliable()) {
                 unreliableList.add(packet);
             }
+
+            //LOGGER.debug("BUFFERED: {}", packet);
 
             sendBuffer.add(new HeapedPacket(nextWeight(packet.priority), packet));
 
@@ -286,7 +290,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         int splitPacketIndex = 0;
 
         do {
-
             int size = Math.min(packet.data.readableBytes(), blockSize);
 
             InternalPacket p = new InternalPacket();
@@ -317,6 +320,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             if (!p.reliability.isReliable()) {
                 unreliableList.add(p);
             }
+
+            //LOGGER.debug("BUFFERED: Split packet #{}: {}/{}", sendSplitId, splitPacketIndex, splitPacketCount);
 
             sendBuffer.add(new HeapedPacket(nextWeight(p.priority), p));
 
@@ -361,6 +366,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         long elapsedTime = Math.min(currentTime - lastUpdated, TimeUnit.MILLISECONDS.toNanos(100));
         lastUpdated = currentTime;
+
+        if (channel.slidingWindow() == null) {
+            // sliding window is not created yet, meaning that we don't know the mtu size
+            return;
+        }
 
         // check unreliable timeout
         int unreliableTimeout = channel.config().getUnreliableTimeoutMillis();
@@ -558,6 +568,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     }
 
                     if (!pushed) break;
+
+                    //LOGGER.debug("WRITE DATAGRAM");
 
                     // push packets into a datagram
                     writeDatagram(header, sendList);

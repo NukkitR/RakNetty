@@ -21,6 +21,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
     private final static InternalLogger LOGGER = InternalLoggerFactory.getInstance(DefaultServerOfflineHandler.class);
     private final static long TIMEOUT_REQUEST = TimeUnit.MILLISECONDS.toNanos(1000);
     private final static long TIMEOUT_RECENT = TimeUnit.MILLISECONDS.toNanos(100);
+    public static final String NAME = "ServerOffline";
 
     private final Map<InetAddress, Long> recentlyConnected = new HashMap<>();
     private final Map<InetSocketAddress, Long> requested = new HashMap<>();

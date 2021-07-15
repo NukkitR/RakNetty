@@ -16,7 +16,7 @@ public class ConnectionRequest implements ReliabilityMessage {
         PacketUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_REQUEST);
         buf.writeLong(clientGuid);
         buf.writeLong(requestTime);
-        //TODO: security
+        buf.writeBoolean(false); //TODO: security
     }
 
     @Override

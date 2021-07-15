@@ -6,19 +6,19 @@ import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.util.PacketUtil;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 public class ConnectionRequestAccepted implements ReliabilityMessage {
 
     public InetSocketAddress clientAddress;
     public int systemIndex = 0;
-    public InetSocketAddress[] ipList = new InetSocketAddress[MAXIMUM_NUMBER_OF_INTERNAL_IDS];
+    public InetSocketAddress[] ipList;
     public long requestTime;
     public long replyTime;
 
-    public ConnectionRequestAccepted() {
-        for (int i = 0; i < MAXIMUM_NUMBER_OF_INTERNAL_IDS; i++) {
-            ipList[i] = UNASSIGNED_SYSTEM_ADDRESS;
-        }
+    public ConnectionRequestAccepted(int numberOfInternalIds) {
+        ipList = new InetSocketAddress[numberOfInternalIds];
+        Arrays.fill(ipList, UNASSIGNED_SYSTEM_ADDRESS);
     }
 
     @Override
@@ -26,7 +26,7 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
         PacketUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_REQUEST_ACCEPTED);
         PacketUtil.writeAddress(buf, clientAddress);
         buf.writeShort(systemIndex);
-        for (int i = 0; i < MAXIMUM_NUMBER_OF_INTERNAL_IDS; i++) {
+        for (int i = 0; i < ipList.length; i++) {
             PacketUtil.writeAddress(buf, ipList[i]);
         }
         buf.writeLong(requestTime);
@@ -38,7 +38,7 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
         buf.skipBytes(1);
         clientAddress = PacketUtil.readAddress(buf);
         systemIndex = buf.readShort();
-        for (int i = 0; i < MAXIMUM_NUMBER_OF_INTERNAL_IDS; i++) {
+        for (int i = 0; i < ipList.length; i++) {
             ipList[i] = PacketUtil.readAddress(buf);
         }
         requestTime = buf.readLong();

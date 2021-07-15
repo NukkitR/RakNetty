@@ -1,24 +1,37 @@
 package org.nukkit.raknetty.handler.codec.minecraft;
 
 import io.netty.buffer.ByteBuf;
+import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
 
 import java.nio.charset.StandardCharsets;
 
 public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
 
+    private final RakServerChannel channel4;
+    private final RakServerChannel channel6;
+
     private boolean isEducation;
     private String serverName;
     private int protocolVersion;
     private String gameVersion;
     private int playerCount;
-    private int maxPlayer;
-    private long serverId;
+    //private int maxPlayer;
+    //private long serverId;
     private String levelName;
     private String gamemodeName;
     private int gamemodeId;
-    private int port4;
-    private int port6;
+    //private int port4;
+    //private int port6;
+
+    public MinecraftOfflinePingResponder(RakServerChannel channel4) {
+        this(channel4, null);
+    }
+
+    public MinecraftOfflinePingResponder(RakServerChannel channel4, RakServerChannel channel6) {
+        this.channel4 = channel4;
+        this.channel6 = channel6;
+    }
 
     public MinecraftOfflinePingResponder isEducation(boolean isEducation) {
         this.isEducation = isEducation;
@@ -62,21 +75,11 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
     }
 
     public int maxPlayer() {
-        return maxPlayer;
-    }
-
-    public MinecraftOfflinePingResponder maxPlayer(int maxPlayer) {
-        this.maxPlayer = maxPlayer;
-        return this;
+        return channel4.config().getMaximumConnections();
     }
 
     public long serverId() {
-        return serverId;
-    }
-
-    public MinecraftOfflinePingResponder serverId(long serverId) {
-        this.serverId = serverId;
-        return this;
+        return channel4.localGuid();
     }
 
     public String levelName() {
@@ -107,21 +110,13 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
     }
 
     public int port4() {
-        return port4;
-    }
-
-    public MinecraftOfflinePingResponder port4(int port4) {
-        this.port4 = port4;
-        return this;
+        if (channel4 == null) return 0;
+        return channel4.localAddress().getPort();
     }
 
     public int port6() {
-        return port6;
-    }
-
-    public MinecraftOfflinePingResponder port6(int port6) {
-        this.port6 = port6;
-        return this;
+        if (channel6 == null) return 0;
+        return channel6.localAddress().getPort();
     }
 
     public MinecraftOfflinePingResponder build() {
@@ -130,21 +125,25 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
 
         String str = String.format("%s;%s;%d;%s;%d;%d;%d;%s;%s;%d;%d;%d;"
                 , prefix
-                , serverName
-                , protocolVersion
-                , gameVersion
-                , playerCount
-                , maxPlayer
-                , serverId
-                , levelName
-                , gamemodeName
-                , gamemodeId
-                , port4
-                , port6
+                , serverName()
+                , protocolVersion()
+                , gameVersion()
+                , playerCount()
+                , maxPlayer()
+                , serverId()
+                , levelName()
+                , gamemodeName()
+                , gamemodeId()
+                , port4()
+                , port6()
         );
 
-        buf.writeShort(str.length());
-        buf.writeCharSequence(str, StandardCharsets.UTF_8);
+        buf.writeZero(2);
+        int length = buf.writeCharSequence(str, StandardCharsets.UTF_8);
+        buf.markWriterIndex();
+        buf.writerIndex(0);
+        buf.writeShort(length);
+        buf.resetWriterIndex();
         return this;
     }
 

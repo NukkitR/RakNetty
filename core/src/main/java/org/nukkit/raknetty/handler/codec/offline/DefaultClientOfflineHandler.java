@@ -1,42 +1,86 @@
 package org.nukkit.raknetty.handler.codec.offline;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.nukkit.raknetty.channel.AddressedMessage;
 import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
+import org.nukkit.raknetty.handler.codec.PacketPriority;
+import org.nukkit.raknetty.handler.codec.PacketReliability;
+import org.nukkit.raknetty.handler.codec.reliability.ConnectionRequest;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.concurrent.TimeUnit;
 
 public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
-    public DefaultClientOfflineHandler(Channel channel) {
+    private final static InternalLogger LOGGER = InternalLoggerFactory.getInstance(DefaultClientOfflineHandler.class);
+    public static final String NAME = "ClientOffline";
+
+    //private final SocketAddress remoteAddress;
+
+    public DefaultClientOfflineHandler(RakChannel channel, SocketAddress requestedRemoteAddress) {
         super(channel);
+        //this.remoteAddress = channel.remoteAddress();
+    }
+
+    @Override
+    public RakChannel channel() {
+        return (RakChannel) super.channel();
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+
+        if (msg instanceof DatagramPacket packet) {
+            InetSocketAddress sender = packet.sender();
+
+            if (!sender.equals(channel().remoteAddress())) {
+                LOGGER.debug("datagram from unknown sender: {}, expecting: {}", sender, channel().remoteAddress());
+                return;
+            }
+        }
+
+        super.channelRead(ctx, msg);
     }
 
     @Override
     public void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage msg, InetSocketAddress sender) {
-        Message reply = null;
-        long now = System.nanoTime();
 
-        try {
-            if (msg instanceof UnconnectedPing) {
-
-            }
-
-            if (msg instanceof OpenConnectionRequest1) {
-
-            }
-
-            if (msg instanceof OpenConnectionRequest2) {
-
-            }
-
-        } finally {
-            if (reply != null) {
-                ctx.writeAndFlush(new AddressedMessage(reply, sender));
-            }
+        if (channel().isActive() || channel().connectMode() == RakChannel.ConnectMode.REQUESTED_CONNECTION) {
+            LOGGER.debug("offline message from a connected system: {}, discarding", sender);
+            return;
         }
+
+        long now = System.nanoTime();
+        LOGGER.debug("READ: {}", msg);
+
+        if (msg instanceof OpenConnectionReply1 in) {
+
+            // update the channel's mtu size
+            channel().mtuSize(in.mtuSize);
+
+            OpenConnectionRequest2 out = new OpenConnectionRequest2();
+            out.serverAddress = sender;
+            out.mtuSize = in.mtuSize;
+            out.clientGuid = channel().localGuid();
+
+            ctx.writeAndFlush(new AddressedMessage(out, sender));
+            return;
+        }
+
+        if (msg instanceof OpenConnectionReply2) {
+            channel().connectMode(RakChannel.ConnectMode.REQUESTED_CONNECTION);
+
+            ConnectionRequest out = new ConnectionRequest();
+            out.clientGuid = channel().localGuid();
+            out.requestTime = TimeUnit.NANOSECONDS.toMillis(now);
+
+            channel().send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE, 0);
+        }
+
     }
 
 }

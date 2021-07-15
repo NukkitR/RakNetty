@@ -16,12 +16,10 @@ import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.handler.codec.offline.ConnectionAttemptFailed;
-import org.nukkit.raknetty.handler.codec.offline.ConnectionLost;
-import org.nukkit.raknetty.handler.codec.offline.DisconnectionNotification;
-import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
+import org.nukkit.raknetty.handler.codec.offline.*;
 import org.nukkit.raknetty.handler.codec.reliability.*;
 
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ConnectionPendingException;
@@ -37,7 +35,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(true);
 
-    private boolean isOpen = true;
+    protected boolean isOpen = true;
 
     private final RakChannelConfig config;
     private SlidingWindow slidingWindow;
@@ -47,7 +45,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     private ChannelPromise connectPromise;
     private Future<?> connectTask;
     private ScheduledFuture<?> connectTimeoutFuture;
-    private SocketAddress requestedRemoteAddress;
+    //private SocketAddress requestedRemoteAddress;
 
     private InetSocketAddress remoteAddress;
     private long remoteGuid;
@@ -102,11 +100,22 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
-        if (localAddress != null) {
-            doBind(localAddress);
+        if (localAddress == null) {
+            localAddress = new InetSocketAddress(0);
         }
+        doBind(localAddress);
 
+        // already connected
         if (isActive()) return true;
+
+        if (pipeline().get(DefaultClientOfflineHandler.NAME) == null) {
+            // first time to connect
+            pipeline().addBefore(
+                    ReliabilityInboundHandler.NAME,
+                    DefaultClientOfflineHandler.NAME,
+                    new DefaultClientOfflineHandler(this, null)
+            );
+        }
 
         connectTask = eventLoop().submit(new ConnectionRequestTask());
         return false;
@@ -127,9 +136,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     protected void doRegister() throws Exception {
         super.doRegister();
-
-        // we create sliding window here because only util now do we know the mtu size.
-        slidingWindow = new SlidingWindow(mtuSize - SlidingWindow.UDP_HEADER_SIZE);
 
         // start update loop
         updateTask = eventLoop().submit(new UpdateCycleTask());
@@ -189,7 +195,16 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     public NioRakChannel connectMode(ConnectMode mode) {
-        this.connectMode = mode;
+        boolean wasActive = isActive();
+        connectMode = mode;
+
+        // connection in pending
+        if (connectPromise != null) {
+            if (!wasActive && isActive()) {
+                connectPromise.trySuccess();
+            }
+        }
+
         return this;
     }
 
@@ -198,8 +213,13 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         return mtuSize;
     }
 
+    @Override
     public NioRakChannel mtuSize(int mtuSize) {
+        Validate.isTrue(slidingWindow == null, "mtu size is immutable and cannot be changed.");
         this.mtuSize = mtuSize;
+
+        slidingWindow = new SlidingWindow(mtuSize);
+        LOGGER.debug("Sliding window is created (mtu = {}).", mtuSize);
         return this;
     }
 
@@ -268,13 +288,18 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                     throw new ConnectionPendingException();
                 }
 
+                if (!(remoteAddress instanceof InetSocketAddress)) {
+                    promise.tryFailure(new ConnectException("remote address is not a subclass of InetSocketAddress"));
+                    return;
+                }
+
                 boolean wasActive = isActive();
                 if (doConnect(remoteAddress, localAddress)) {
                     fulfillConnectPromise(promise, wasActive);
 
                 } else {
                     connectPromise = promise;
-                    requestedRemoteAddress = remoteAddress;
+                    NioRakChannel.this.remoteAddress = (InetSocketAddress) remoteAddress;
 
                     // Schedule connect timeout.
                     int connectTimeoutMillis = config().getConnectTimeoutMillis();
@@ -290,12 +315,24 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                     }
 
                     promise.addListener((ChannelFutureListener) future -> {
-                        if (future.isCancelled()) {
+                        if (future.isDone()) {
                             if (connectTimeoutFuture != null) {
                                 connectTimeoutFuture.cancel(false);
                             }
+
+                            if (connectTask != null) {
+                                connectTask.cancel(false);
+                            }
+
                             connectPromise = null;
-                            close(voidPromise());
+
+                            if (future.isCancelled()) {
+                                // connection is not successful
+                                close(voidPromise());
+                                LOGGER.debug("CONNECT: FAILED");
+                            } else {
+                                LOGGER.debug("CONNECT: SUCCESS");
+                            }
                         }
                     });
                 }
@@ -307,20 +344,16 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
         private void fulfillConnectPromise(ChannelPromise promise, boolean wasActive) {
             if (promise == null) {
-                // Closed via cancellation and the promise has been notified already.
                 return;
             }
 
             boolean active = isActive();
             boolean promiseSet = promise.trySuccess();
 
-            // Regardless if the connection attempt was cancelled, channelActive() event should be triggered,
-            // because what happened is what happened.
             if (!wasActive && active) {
                 pipeline().fireChannelActive();
             }
 
-            // If a user cancelled the connection attempt, close the channel, which is followed by channelInactive().
             if (!promiseSet) {
                 close(voidPromise());
             }
@@ -351,13 +384,12 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             // schedule next connection request
             connectTask = eventLoop().schedule(this, config.getConnectIntervalMillis(), TimeUnit.MILLISECONDS);
 
-
-            if (requestedRemoteAddress instanceof InetSocketAddress address) {
+            if (remoteAddress() != null) {
                 OpenConnectionRequest1 request = new OpenConnectionRequest1();
                 request.protocol = RAKNET_PROTOCOL_VERSION;
                 request.mtuSize = mtuSizes[mtuIndex];
 
-                udpChannel().write(new AddressedMessage(request, address));
+                pipeline().writeAndFlush(new AddressedMessage(request, remoteAddress()));
             }
         }
     }
@@ -433,10 +465,11 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                             break;
                     }
 
-                    if (closeMessage == null) {
+                    if (closeMessage != null) {
                         //TODO: fire channel read? pipeline().fireChannelRead(closeMessage);
                     }
 
+                    pipeline().fireChannelInactive();
                     close();
                     return;
                 }

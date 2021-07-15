@@ -2,10 +2,7 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.DatagramChannel;
-import org.nukkit.raknetty.handler.codec.MTUSize;
 
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Map;
 
 public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig implements RakServerChannelConfig {

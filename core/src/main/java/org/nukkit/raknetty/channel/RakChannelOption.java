@@ -12,6 +12,7 @@ public class RakChannelOption<T> extends ChannelOption<T> {
     public static final ChannelOption<Integer> RAKNET_CONNECT_TIMEOUT = ChannelOption.valueOf("RAKNET_CONNECT_TIMEOUT");
     public static final ChannelOption<Integer> RAKNET_UNRELIABLE_TIMEOUT = ChannelOption.valueOf("RAKNET_UNRELIABLE_TIMEOUT");
     public static final ChannelOption<Integer> RAKNET_TIMEOUT = ChannelOption.valueOf("RAKNET_TIMEOUT");
+    public static final ChannelOption<Integer> RAKNET_NUMBER_OF_INTERNAL_IDS = ChannelOption.valueOf("RAKNET_NUMBER_OF_INTERNAL_IDS");
     public static final ChannelOption<OfflinePingResponder> RAKNET_OFFLINE_PING_RESPONDER = ChannelOption.valueOf("RAKNET_OFFLINE_PING_RESPONDER");
 
     @SuppressWarnings("deprecation")

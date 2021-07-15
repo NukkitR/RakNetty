@@ -78,10 +78,10 @@ public class TCPTest {
                 .sync();
         Channel ch = f.channel();
 
-        ch.writeAndFlush(Unpooled.copiedBuffer("MSG1",StandardCharsets.UTF_8)).sync();
+        ch.writeAndFlush(Unpooled.copiedBuffer("MSG1", StandardCharsets.UTF_8)).sync();
         Thread.sleep(200);
-        ch.writeAndFlush(Unpooled.copiedBuffer("MSG2",StandardCharsets.UTF_8)).sync();
+        ch.writeAndFlush(Unpooled.copiedBuffer("MSG2", StandardCharsets.UTF_8)).sync();
         Thread.sleep(200);
-        ch.writeAndFlush(Unpooled.copiedBuffer("CLOSE",StandardCharsets.UTF_8)).sync();
+        ch.writeAndFlush(Unpooled.copiedBuffer("CLOSE", StandardCharsets.UTF_8)).sync();
     }
 }

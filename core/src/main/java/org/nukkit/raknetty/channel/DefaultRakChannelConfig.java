@@ -24,6 +24,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     private volatile int connectTimeout = 0;
     private volatile int unreliableTimeout = 0;
     private volatile int timeout = 10000;
+    private volatile int numberOfInternalIds = 10;
     private volatile OfflinePingResponder responder = new DefaultOfflinePingResponder();
 
     private final DatagramChannel udpChannel;
@@ -55,6 +56,8 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             return (T) (Integer) unreliableTimeout;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             return (T) (Integer) timeout;
+        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+            return (T) (Integer) numberOfInternalIds;
         } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
             return (T) responder;
         }
@@ -82,6 +85,8 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             unreliableTimeout = (int) value;
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             timeout = (int) value;
+        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+            numberOfInternalIds = (int) value;
         } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
             responder = (OfflinePingResponder) value;
         } else {
@@ -173,6 +178,18 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     public RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis) {
         ObjectUtil.checkPositiveOrZero(unreliableTimeoutMillis, "unreliableTimeoutMillis");
         this.unreliableTimeout = unreliableTimeoutMillis;
+        return this;
+    }
+
+    @Override
+    public int getMaximumNumberOfInternalIds() {
+        return numberOfInternalIds;
+    }
+
+    @Override
+    public RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds) {
+        ObjectUtil.checkPositive(numberOfInternalIds, "numberOfInternalIds");
+        this.unreliableTimeout = numberOfInternalIds;
         return this;
     }
 
