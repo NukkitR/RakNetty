@@ -181,19 +181,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
-            /*
-            LOGGER.debug("SEND: {}", message);
-            ByteBuf buf = alloc().ioBuffer();
-            message.encode(buf);
-            InternalPacket packet = new InternalPacket();
-            packet.data = buf;
-            packet.reliability = (reliability == null) ? PacketReliability.RELIABLE : reliability;
-            packet.priority = (priority == null) ? PacketPriority.HIGH_PRIORITY : priority;
-            packet.orderingChannel = (orderingChannel > NUMBER_OF_ORDERED_STREAMS) ? 0 : orderingChannel;
-            pipeline().write(packet);
-            */
-
-            ReliableMessageEnvelop envelop = new ReliableMessageEnvelop(message, priority, reliability, orderingChannel);
+            ReliabilityMessageEnvelop envelop = new ReliabilityMessageEnvelop(message, priority, reliability, orderingChannel);
             pipeline().write(envelop);
 
             if (priority == PacketPriority.IMMEDIATE_PRIORITY) {

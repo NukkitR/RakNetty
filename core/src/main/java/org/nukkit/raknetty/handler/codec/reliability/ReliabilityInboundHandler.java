@@ -9,6 +9,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
+import org.nukkit.raknetty.channel.ReliabilityByteEnvelop;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 
@@ -51,8 +52,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
         this.channel = channel;
 
         for (int i = 0; i < NUMBER_OF_ORDERED_STREAMS; i++) {
-            //orderingHeaps[i] = new PriorityQueue<>(Comparator.comparingInt(a -> a.weight));
-            orderingHeaps[i] = new PriorityQueue<>();
+            orderingHeaps[i] = new PriorityQueue<>(64);
         }
     }
 
@@ -234,7 +234,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 
                 } else {
                     // got a ordered but NOT sequenced packet, with the expecting order
-                    ctx.fireChannelRead(packet.data);
+                    fireChannelRead(ctx, packet);
 
                     // increment by 1 for every ordered message sent
                     orderedReadIndex[orderingChannel]++;
@@ -242,20 +242,20 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                     sequencedReadIndex[orderingChannel] = 0;
 
                     // check the ordering heap and write those ready to next handler
-                    PriorityQueue<HeapedPacket> heap = orderingHeaps[packet.orderingChannel];
+                    PriorityQueue<HeapedPacket> heap = orderingHeaps[orderingChannel];
                     while (heap.size() > 0) {
                         if (heap.peek().packet.orderingIndex != orderedReadIndex[orderingChannel]) {
                             break;
                         }
 
                         packet = heap.poll().packet;
-                        ctx.fireChannelRead(packet.data);
+                        fireChannelRead(ctx, packet);
 
                         if (packet.reliability == PacketReliability.RELIABLE_ORDERED) {
-                            orderedReadIndex[packet.orderingChannel]++;
+                            orderedReadIndex[orderingChannel]++;
 
                         } else {
-                            sequencedReadIndex[packet.orderingChannel] = packet.sequencingIndex;
+                            sequencedReadIndex[orderingChannel] = packet.sequencingIndex;
                         }
                     }
                 }
@@ -267,12 +267,12 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 // If a message has a greater ordering index, and is sequenced or ordered, buffer it
                 // Sequenced has a lower heap weight, ordered has max sequenced weight
 
-                PriorityQueue<HeapedPacket> heap = orderingHeaps[packet.orderingChannel];
+                PriorityQueue<HeapedPacket> heap = orderingHeaps[orderingChannel];
                 if (heap.size() == 0) {
-                    heapIndexOffsets[packet.orderingChannel] = orderedReadIndex[orderingChannel];
+                    heapIndexOffsets[orderingChannel] = orderedReadIndex[orderingChannel];
                 }
 
-                int orderedHoleCount = packet.orderingIndex - heapIndexOffsets[packet.orderingChannel];
+                int orderedHoleCount = packet.orderingIndex - heapIndexOffsets[orderingChannel];
                 int weight = orderedHoleCount * 0x100000;
 
                 if (packet.reliability.isSequenced()) {
@@ -287,14 +287,18 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 return;
 
             } else {
-                // out of order packet
+                // out of order packet, discard it
                 ReferenceCountUtil.release(packet);
                 return;
             }
         }
 
         // Nothing special about this packet. Move it to the next handler
-        ctx.fireChannelRead(packet.data);
+        fireChannelRead(ctx, packet);
+    }
+
+    private void fireChannelRead(ChannelHandlerContext ctx, InternalPacket packet) {
+        ctx.fireChannelRead(new ReliabilityByteEnvelop(packet.data, packet.priority, packet.reliability, packet.orderingChannel));
     }
 
     private boolean isOlderPacket(int actualIndex, int expectingIndex) {

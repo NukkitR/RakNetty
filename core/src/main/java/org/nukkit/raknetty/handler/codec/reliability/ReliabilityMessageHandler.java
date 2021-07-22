@@ -9,7 +9,9 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
-import org.nukkit.raknetty.channel.ReliableMessageEnvelop;
+import org.nukkit.raknetty.channel.ReliabilityByteEnvelop;
+import org.nukkit.raknetty.channel.ReliabilityEnvelop;
+import org.nukkit.raknetty.channel.ReliabilityMessageEnvelop;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
@@ -77,7 +79,8 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ByteBuf buf = (ByteBuf) msg;
+        ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
+        ByteBuf buf = envelop.message();
 
         boolean release = true;
 
@@ -228,11 +231,20 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        ReliableMessageEnvelop envelop = (ReliableMessageEnvelop) msg;
+        ReliabilityEnvelop<?> envelop = (ReliabilityEnvelop<?>) msg;
+        ByteBuf buf;
 
-        int mtuSize = channel.mtuSize();
-        ByteBuf buf = ctx.alloc().ioBuffer(mtuSize, mtuSize);
-        envelop.message().encode(buf);
+        if (envelop instanceof ReliabilityMessageEnvelop e) {
+            int mtuSize = channel.mtuSize();
+            buf = ctx.alloc().ioBuffer(mtuSize, mtuSize);
+            e.message().encode(buf);
+
+        } else if (envelop instanceof ReliabilityByteEnvelop e) {
+            buf = e.message();
+
+        } else {
+            throw new UnsupportedOperationException("unknown content type: " + envelop.message().getClass());
+        }
 
         InternalPacket packet = new InternalPacket();
         packet.data = buf;

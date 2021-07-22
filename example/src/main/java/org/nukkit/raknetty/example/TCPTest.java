@@ -18,8 +18,7 @@ import java.nio.charset.StandardCharsets;
 
 public class TCPTest {
 
-    private static final int PORT = 25560;
-
+    static final int PORT = 25560;
     static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TCPTest.class);
 
     public static void main(String[] args) throws Exception {

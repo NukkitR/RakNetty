@@ -1,15 +1,16 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.ReferenceCounted;
+import io.netty.buffer.ByteBufHolder;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.DefaultByteBufHolder;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.DefaultReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.util.PacketUtil;
 
-public class InternalPacket extends DefaultReliabilityMessage implements ReferenceCounted {
+public class InternalPacket extends DefaultReliabilityMessage implements ByteBufHolder {
 
     public static final int NUMBER_OF_ORDERED_STREAMS = 32;
 
@@ -26,7 +27,6 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
 
     @Override
     public void encode(ByteBuf buf) {
-        // TODO:
         byte flag = 0;
         PacketReliability temp = switch (this.reliability) {
             case UNRELIABLE_WITH_ACK_RECEIPT -> PacketReliability.UNRELIABLE;
@@ -130,7 +130,6 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
         return (InternalPacket) super.clone();
     }
 
-
     @Override
     public String toString() {
         ToStringBuilder builder = new ToStringBuilder(this)
@@ -160,42 +159,68 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
         return builder.toString();
     }
 
+
+    @Override
+    public ByteBuf content() {
+        return ByteBufUtil.ensureAccessible(data);
+    }
+
+    @Override
+    public ByteBufHolder copy() {
+        return replace(data.copy());
+    }
+
+    @Override
+    public ByteBufHolder duplicate() {
+        return replace(data.duplicate());
+    }
+
+    @Override
+    public ByteBufHolder retainedDuplicate() {
+        return replace(data.retainedDuplicate());
+    }
+
+    @Override
+    public ByteBufHolder replace(ByteBuf content) {
+        return new DefaultByteBufHolder(content);
+    }
+
     @Override
     public int refCnt() {
-        return ReferenceCountUtil.refCnt(data);
+        return data.refCnt();
     }
 
     @Override
-    public ReferenceCounted retain() {
-        ReferenceCountUtil.retain(data);
+    public ByteBufHolder retain() {
+        data.retain();
         return this;
     }
 
     @Override
-    public ReferenceCounted retain(int increment) {
-        ReferenceCountUtil.retain(data, increment);
+    public ByteBufHolder retain(int increment) {
+        data.retain(increment);
         return this;
     }
 
     @Override
-    public ReferenceCounted touch() {
-        ReferenceCountUtil.touch(data);
+    public ByteBufHolder touch() {
+        data.touch();
         return this;
     }
 
     @Override
-    public ReferenceCounted touch(Object hint) {
-        ReferenceCountUtil.touch(data, hint);
+    public ByteBufHolder touch(Object hint) {
+        data.touch(hint);
         return this;
     }
 
     @Override
     public boolean release() {
-        return ReferenceCountUtil.release(data);
+        return data.release();
     }
 
     @Override
     public boolean release(int decrement) {
-        return ReferenceCountUtil.release(data, decrement);
+        return data.release(decrement);
     }
 }
