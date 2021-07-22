@@ -10,7 +10,10 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.handler.codec.*;
+import org.nukkit.raknetty.handler.codec.DatagramHeader;
+import org.nukkit.raknetty.handler.codec.Message;
+import org.nukkit.raknetty.handler.codec.PacketPriority;
+import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.util.PacketUtil;
 
 import java.util.*;
@@ -120,6 +123,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     protected void doSendAck() {
+        int mtuSize = channel.mtuSize();
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
         DatagramHeader header = DatagramHeader.getHeader(DatagramHeader.Type.ACK);
 
@@ -127,7 +131,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             // if (needsBandAs) is deprecated
             LOGGER.debug("SEND_ACK: {}", ACKs);
 
-            ByteBuf buf = channel.alloc().ioBuffer();
+            ByteBuf buf = channel.alloc().ioBuffer(mtuSize, mtuSize);
             header.encode(buf);
             ACKs.encode(buf, maxSize, true);
 
@@ -141,10 +145,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     protected void doSendNak() {
         LOGGER.debug("SEND_NAK: {}", NAKs);
 
+        int mtuSize = channel.mtuSize();
         int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader();
         DatagramHeader header = DatagramHeader.getHeader(DatagramHeader.Type.NAK);
 
-        ByteBuf buf = channel.alloc().ioBuffer();
+        ByteBuf buf = channel.alloc().ioBuffer(mtuSize, mtuSize);
         header.encode(buf);
         NAKs.encode(buf, maxSize, true);
 
@@ -205,7 +210,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     private void writeDatagram(DatagramHeader header, List<InternalPacket> packets) {
         Validate.isTrue(!packets.isEmpty());
 
-        ByteBuf buf = channel.alloc().ioBuffer();
+        int mtuSize = channel.mtuSize();
+        ByteBuf buf = channel.alloc().ioBuffer(mtuSize, mtuSize);
 
         header.datagramNumber = channel.slidingWindow().increaseDatagramNumber();
         header.encode(buf);
@@ -284,6 +290,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
     private void splitPacket(InternalPacket packet) {
 
+        Validate.isTrue(channel.mtuSize() > 0, "mtu size is not defined.");
+
         packet.splitPacketCount = 1; // mark it as split packet by assigning an arbitrary value
         int headerLength = PacketUtil.getHeaderLength(packet);
         int bodyLength = packet.bodyLength();
@@ -321,7 +329,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             arr[splitPacketIndex] = p;
 
-            Validate.isTrue(p.bodyLength() < MTUSize.MAXIMUM_MTU_SIZE);
+            Validate.isTrue(p.bodyLength() < channel.mtuSize());
 
             if (!p.reliability.isReliable()) {
                 unreliableList.add(p);
@@ -376,10 +384,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         long elapsedTime = Math.min(currentTime - lastUpdated, TimeUnit.MILLISECONDS.toNanos(100));
         lastUpdated = currentTime;
 
-        if (channel.slidingWindow() == null) {
+        if (channel.slidingWindow() == null || channel.mtuSize() <= 0) {
             // sliding window is not created yet, meaning that we don't know the mtu size
             return;
         }
+        int mtuSize = channel.mtuSize();
 
         // check unreliable timeout
         int unreliableTimeout = channel.config().getUnreliableTimeoutMillis();
@@ -466,7 +475,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
                                 // hit the MTU, push datagram
                                 Validate.isTrue(datagramSizes > 0);
-                                Validate.isTrue(packetLength < MTUSize.MAXIMUM_MTU_SIZE);
+                                Validate.isTrue(packetLength < mtuSize);
 
                                 writeDatagram(header, sendList);
                                 header.isContinuousSend = true; // set isContinuousSend to true for subsequent datagrams
@@ -482,7 +491,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             // push packet, see ReliabilityLayer::PushPacket
                             datagramSizes += packetLength;
                             totalSize += packetLength;
-                            Validate.isTrue(datagramSizes < MTUSize.MAXIMUM_MTU_SIZE - UDP_HEADER_SIZE);
+                            Validate.isTrue(datagramSizes < mtuSize - UDP_HEADER_SIZE);
                             sendList.add(packet);
                             packet.timeSent++;
 
@@ -556,7 +565,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
                             // hit MTU, stop pushing packets
                             Validate.isTrue(datagramSizes > 0);
-                            Validate.isTrue(packetLength < MTUSize.MAXIMUM_MTU_SIZE);
+                            Validate.isTrue(packetLength < mtuSize);
                             break;
                         }
 
@@ -587,7 +596,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         // push packet, see ReliabilityLayer::PushPacket
                         datagramSizes += packetLength;
                         totalSize += packetLength;
-                        Validate.isTrue(datagramSizes < MTUSize.MAXIMUM_MTU_SIZE - UDP_HEADER_SIZE);
+                        Validate.isTrue(datagramSizes < mtuSize - UDP_HEADER_SIZE);
                         sendList.add(packet);
                         packet.timeSent++;
 

@@ -13,6 +13,8 @@ public interface RakChannelConfig extends ChannelConfig {
 
     RakChannelConfig setMtuSizes(int[] mtuSizes);
 
+    int getMaximumMtuSize();
+
     int getConnectAttempts();
 
     RakChannelConfig setConnectAttempts(int connectAttempts);

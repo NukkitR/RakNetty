@@ -230,7 +230,8 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         ReliableMessageEnvelop envelop = (ReliableMessageEnvelop) msg;
 
-        ByteBuf buf = ctx.alloc().ioBuffer();
+        int mtuSize = channel.mtuSize();
+        ByteBuf buf = ctx.alloc().ioBuffer(mtuSize, mtuSize);
         envelop.message().encode(buf);
 
         InternalPacket packet = new InternalPacket();

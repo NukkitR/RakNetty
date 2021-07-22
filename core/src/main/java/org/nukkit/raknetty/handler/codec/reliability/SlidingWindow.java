@@ -3,8 +3,8 @@ package org.nukkit.raknetty.handler.codec.reliability;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
+import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
-import org.nukkit.raknetty.handler.codec.MTUSize;
 
 import java.util.concurrent.TimeUnit;
 
@@ -12,10 +12,11 @@ public class SlidingWindow {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(SlidingWindow.class);
 
-
     public static final int UDP_HEADER_SIZE = 28;
     public static final long SYN = TimeUnit.MILLISECONDS.toNanos(10);
     public static final double UNSET_TIME_NS = -1.0d;
+
+    private final RakChannel channel;
 
     private int mtuSize;
     private double cwnd;
@@ -35,9 +36,15 @@ public class SlidingWindow {
     private boolean speedup = false;
     private boolean isContinuousSend = false;
 
-    public SlidingWindow(int mtuSize) {
+    public SlidingWindow(RakChannel channel, int mtuSize) {
+        Validate.notNull(channel);
+        this.channel = channel;
         this.setMtu(mtuSize - SlidingWindow.UDP_HEADER_SIZE);
-        cwnd = this.mtuSize;
+        cwnd = getMtu();
+    }
+
+    public RakChannel channel() {
+        return this.channel;
     }
 
     public int getRetransmissionBandwidth(int unackedBytes) {
@@ -190,7 +197,8 @@ public class SlidingWindow {
     }
 
     public void setMtu(int mtuSize) {
-        Validate.isTrue(mtuSize <= MTUSize.MAXIMUM_MTU_SIZE);
+        Validate.isTrue(mtuSize > 0);
+        Validate.isTrue(mtuSize <= channel.config().getMaximumMtuSize());
         this.mtuSize = mtuSize;
     }
 

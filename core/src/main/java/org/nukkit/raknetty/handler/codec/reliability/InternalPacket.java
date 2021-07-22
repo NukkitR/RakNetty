@@ -6,7 +6,6 @@ import io.netty.util.ReferenceCounted;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.DefaultReliabilityMessage;
-import org.nukkit.raknetty.handler.codec.MTUSize;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.util.PacketUtil;
 
@@ -112,9 +111,8 @@ public class InternalPacket extends DefaultReliabilityMessage implements Referen
         // we want to make sure the packet have enough bytes left to read
         // and it should be smaller than the MTU size
         int bodyLength = PacketUtil.bitToBytes(bitLength);
-        Validate.isTrue(bodyLength < MTUSize.MAXIMUM_MTU_SIZE, "packet length exceeds the limit");
-        Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
 
+        Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
         data = buf.readBytes(bodyLength);
     }
 

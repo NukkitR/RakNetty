@@ -45,6 +45,7 @@ public class BedrockServer {
                     // consist with the bedrock RakNet configuration
                     .option(RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 20)
+                    .option(RakServerChannelOption.RAKNET_MTU_SIZES, new int[]{1400})
                     .handler(new LoggingHandler("RakServerLogger", LogLevel.INFO))
                     .childHandler(new ChannelInitializer<RakChannel>() {
                         @Override

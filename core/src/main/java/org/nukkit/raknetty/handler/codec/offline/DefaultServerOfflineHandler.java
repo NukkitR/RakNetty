@@ -81,7 +81,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 // reply to the client with OpenConnectionReply1
                 OpenConnectionReply1 out = new OpenConnectionReply1();
                 out.serverGuid = channel().localGuid();
-                out.mtuSize = in.mtuSize;
+                out.mtuSize = Math.min(in.mtuSize, channel().config().getMaximumMtuSize());
 
                 reply = out;
                 return;
@@ -138,7 +138,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 OpenConnectionReply2 out = new OpenConnectionReply2();
                 out.serverGuid = channel().localGuid();
                 out.clientAddress = sender;
-                out.mtuSize = in.mtuSize;
+                out.mtuSize = Math.min(in.mtuSize, channel().config().getMaximumMtuSize());
                 reply = out;
 
                 // creating new channel and add the address to the recently connected list

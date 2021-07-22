@@ -4,7 +4,6 @@ import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
 import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
-import org.nukkit.raknetty.handler.codec.MTUSize;
 import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
 
 import java.util.Arrays;
@@ -18,7 +17,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     private final static Random random = new Random(System.nanoTime());
 
     private volatile long localGuid = random.nextLong();
-    private volatile int[] mtuSizes = {MTUSize.MAXIMUM_MTU_SIZE, 1200, 576};
+    private volatile int[] mtuSizes = {1492, 1200, 576}; // PPPoE,
     private volatile int connectAttempts = 6;
     private volatile int connectInterval = 1000;
     private volatile int connectTimeout = 0;
@@ -43,23 +42,23 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     @Override
     public <T> T getOption(ChannelOption<T> option) {
         if (option == RakChannelOption.RAKNET_GUID) {
-            return (T) (Long) localGuid;
+            return (T) (Long) getLocalGuid();
         } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
-            return (T) mtuSizes;
+            return (T) getMtuSizes();
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
-            return (T) (Integer) connectAttempts;
+            return (T) (Integer) getConnectAttempts();
         } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
-            return (T) (Integer) connectInterval;
+            return (T) (Integer) getConnectIntervalMillis();
         } else if (option == RakChannelOption.RAKNET_CONNECT_TIMEOUT) {
-            return (T) (Integer) connectTimeout;
+            return (T) (Integer) getConnectTimeoutMillis();
         } else if (option == RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT) {
-            return (T) (Integer) unreliableTimeout;
+            return (T) (Integer) getUnreliableTimeoutMillis();
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
-            return (T) (Integer) timeout;
+            return (T) (Integer) getTimeoutMillis();
         } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
-            return (T) (Integer) numberOfInternalIds;
+            return (T) (Integer) getMaximumNumberOfInternalIds();
         } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
-            return (T) responder;
+            return (T) getOfflinePingResponder();
         }
         return udpChannel.config().getOption(option);
     }
@@ -69,26 +68,23 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
         validate(option, value);
 
         if (option == RakChannelOption.RAKNET_GUID) {
-            localGuid = (long) value;
+            setLocalGuid((long) value);
         } else if (option == RakServerChannelOption.RAKNET_MTU_SIZES) {
-            mtuSizes = Arrays.stream((int[]) value).boxed()
-                    .sorted(Comparator.reverseOrder())
-                    .mapToInt(i -> i)
-                    .toArray();
+            setMtuSizes((int[]) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
-            connectAttempts = (int) value;
+            setConnectAttempts((int) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
-            connectInterval = (int) value;
+            setConnectIntervalMillis((int) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_TIMEOUT) {
-            connectTimeout = (int) value;
+            setConnectTimeoutMillis((int) value);
         } else if (option == RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT) {
-            unreliableTimeout = (int) value;
+            setUnreliableTimeoutMillis((int) value);
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
-            timeout = (int) value;
+            setTimeoutMillis((int) value);
         } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
-            numberOfInternalIds = (int) value;
+            setMaximumNumberOfInternalIds((int) value);
         } else if (option == RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER) {
-            responder = (OfflinePingResponder) value;
+            setOfflinePingResponder((OfflinePingResponder) value);
         } else {
             return udpChannel.config().setOption(option, value);
         }
@@ -119,6 +115,11 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
                 .mapToInt(i -> i)
                 .toArray();
         return this;
+    }
+
+    @Override
+    public int getMaximumMtuSize() {
+        return mtuSizes[0]; // mtuSizes is sorted, the maximum value will be the first
     }
 
     @Override
@@ -189,7 +190,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     @Override
     public RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds) {
         ObjectUtil.checkPositive(numberOfInternalIds, "numberOfInternalIds");
-        this.unreliableTimeout = numberOfInternalIds;
+        this.numberOfInternalIds = numberOfInternalIds;
         return this;
     }
 

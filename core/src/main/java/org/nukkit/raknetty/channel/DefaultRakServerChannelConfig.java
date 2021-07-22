@@ -2,6 +2,7 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.util.internal.ObjectUtil;
 
 import java.util.Map;
 
@@ -22,7 +23,7 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
     @Override
     public <T> T getOption(ChannelOption<T> option) {
         if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
-            return (T) (Integer) maxConnections;
+            return (T) (Integer) getMaximumConnections();
         }
         return super.getOption(option);
     }
@@ -32,7 +33,7 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
         validate(option, value);
 
         if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
-            maxConnections = (int) value;
+            setMaximumConnections((int) value);
         } else {
             return super.setOption(option, value);
         }
@@ -46,6 +47,7 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
 
     @Override
     public RakServerChannelConfig setMaximumConnections(int maxConnections) {
+        ObjectUtil.checkPositiveOrZero(maxConnections, "maxConnections");
         this.maxConnections = maxConnections;
         return this;
     }

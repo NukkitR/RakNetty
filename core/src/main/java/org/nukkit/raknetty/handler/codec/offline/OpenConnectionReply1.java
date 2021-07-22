@@ -2,7 +2,6 @@ package org.nukkit.raknetty.handler.codec.offline;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.MTUSize;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
 import org.nukkit.raknetty.util.PacketUtil;
@@ -19,7 +18,7 @@ public class OpenConnectionReply1 implements OfflineMessage {
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
         buf.writeLong(serverGuid);
         buf.writeBoolean(hasSecurity);
-        buf.writeShort(Math.min(mtuSize, MTUSize.MAXIMUM_MTU_SIZE));
+        buf.writeShort(mtuSize);
     }
 
     @Override

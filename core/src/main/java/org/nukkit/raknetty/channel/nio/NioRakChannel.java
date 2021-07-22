@@ -243,10 +243,14 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     public NioRakChannel mtuSize(int mtuSize) {
         Validate.isTrue(slidingWindow == null, "mtu size is immutable and cannot be changed.");
+        Validate.isTrue(mtuSize > 0, "mtu size must be positive");
+
+        mtuSize = Math.min(mtuSize, config().getMaximumMtuSize());
         this.mtuSize = mtuSize;
 
-        slidingWindow = new SlidingWindow(mtuSize);
+        slidingWindow = new SlidingWindow(this, mtuSize);
         LOGGER.debug("Sliding window is created (mtu = {}).", mtuSize);
+
         return this;
     }
 
