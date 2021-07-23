@@ -39,8 +39,8 @@ public class BedrockForwarder {
     }
 
     public static void startServer() throws Exception {
-        final ThreadFactory acceptFactory = new DefaultThreadFactory("accept");
-        final ThreadFactory connectFactory = new DefaultThreadFactory("connect");
+        final ThreadFactory acceptFactory = new DefaultThreadFactory("server-accept");
+        final ThreadFactory connectFactory = new DefaultThreadFactory("server-connect");
         final NioEventLoopGroup acceptGroup = new NioEventLoopGroup(2, acceptFactory);
         final NioEventLoopGroup connectGroup = new NioEventLoopGroup(connectFactory);
 
@@ -61,13 +61,13 @@ public class BedrockForwarder {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 // use RakNetty client to send, use assumed priority and reliability
-                                LOGGER.debug("READ: from client");
                                 ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
                                 clientChannel.write(envelop);
                             }
                         });
                         ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.INFO, ByteBufFormat.SIMPLE));
-                        ch.closeFuture().addListener((ChannelFutureListener) future -> serverChannel.close().sync());
+                        // close the main channel if the child channel is on close
+                        ch.closeFuture().addListener((ChannelFutureListener) future -> serverChannel.close());
                     }
                 });
         // Start the server.
@@ -77,9 +77,11 @@ public class BedrockForwarder {
         serverChannel = (NioRakServerChannel) future.channel();
         serverChannel.closeFuture().addListener((ChannelFutureListener) future1 -> {
             LOGGER.info("RakNetty server is closed.");
+            // close the workgroup when shutting down the server
             acceptGroup.shutdownGracefully();
             connectGroup.shutdownGracefully();
-            clientChannel.close().sync();
+            // close the client if it is open
+            clientChannel.close();
         });
 
         // Setup the offline responder
@@ -96,7 +98,8 @@ public class BedrockForwarder {
     }
 
     public static void startClient() throws Exception {
-        final NioEventLoopGroup workGroup = new NioEventLoopGroup();
+        final ThreadFactory factory = new DefaultThreadFactory("client");
+        final NioEventLoopGroup workGroup = new NioEventLoopGroup(factory);
 
         final Bootstrap boot = new Bootstrap();
         boot.group(workGroup)
@@ -113,7 +116,6 @@ public class BedrockForwarder {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 // use RakNetty client to send, use assumed priority and reliability
-                                LOGGER.debug("READ: from remote server");
                                 ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
                                 serverChildChannel.write(envelop);
                             }
@@ -128,8 +130,10 @@ public class BedrockForwarder {
         clientChannel = (RakChannel) future.channel();
         clientChannel.closeFuture().addListener((ChannelFutureListener) future1 -> {
             LOGGER.info("RakNetty client is closed.");
+            // close the workgroup
             workGroup.shutdownGracefully();
-            serverChannel.close().sync();
+            // close the server if it is open
+            serverChannel.close();
         });
     }
 }

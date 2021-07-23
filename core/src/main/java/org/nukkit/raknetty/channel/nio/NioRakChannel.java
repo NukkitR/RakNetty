@@ -104,6 +104,12 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
         if (connectPromise != null) {
             connectPromise.tryFailure(new ConnectTimeoutException());
+            connectPromise = null;
+        }
+
+        if (updateTask != null) {
+            updateTask.cancel(false);
+            updateTask = null;
         }
     }
 

@@ -97,6 +97,7 @@ public final class NioRakServerChannel extends AbstractRakDatagramChannel implem
     @Override
     protected void doClose() throws Exception {
         udpChannel().close();
+        childChannels.values().forEach(channel -> channel.close());
     }
 
     @Override
@@ -111,7 +112,7 @@ public final class NioRakServerChannel extends AbstractRakDatagramChannel implem
 
     @Override
     public long remoteGuid() {
-        return -1; //UNASSIGNED_SYSTEM_ADDRESS
+        return -1;
     }
 
     @Override
