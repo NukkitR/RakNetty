@@ -178,11 +178,11 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 
             while (holeSize > 0) {
                 boolean received = hasReceived.contains(receivedBaseIndex);
-                if (received) {
-                    hasReceived.remove(receivedBaseIndex);
-                    ++receivedBaseIndex;
-                    --holeSize;
-                }
+                if (!received) break;
+
+                hasReceived.remove(receivedBaseIndex);
+                ++receivedBaseIndex;
+                --holeSize;
             }
 
             // keep top always >= base
@@ -215,6 +215,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 
         // ordering packet
         if (packet.reliability.isOrdered()) {
+
             int orderingChannel = packet.orderingChannel;
 
             if (packet.orderingIndex == orderedReadIndex[orderingChannel]) {
