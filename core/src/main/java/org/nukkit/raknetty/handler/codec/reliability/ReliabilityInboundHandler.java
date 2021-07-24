@@ -138,13 +138,13 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 
         // check if we missed some reliable messages?
         if (packet.reliability.isReliable()) {
-            int holeIndex = packet.reliableIndex - receivedBaseIndex;
+            int holeIndex = packet.reliableMessageNumber - receivedBaseIndex;
             int holeSize = receivedTopIndex - receivedBaseIndex + 1;
 
             if (holeIndex == 0) {
                 // got a packet that we were expecting
                 // Reliability.cpp#L956 hasReceivedPacketQueue.Pop();
-                hasReceived.remove(packet.reliableIndex);
+                hasReceived.remove(packet.reliableMessageNumber);
                 // move the base index
                 ++receivedBaseIndex;
                 // fill the hole
@@ -172,7 +172,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 // holeIndex >= holeSize
                 Validate.isTrue(holeIndex < 100000, "hole count too high");
                 // expand the hole
-                receivedTopIndex = packet.reliableIndex;
+                receivedTopIndex = packet.reliableMessageNumber;
                 hasReceived.add(receivedTopIndex);
             }
 

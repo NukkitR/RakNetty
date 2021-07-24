@@ -114,7 +114,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                 // update timers so resends occur in this next update.
                 node.messages.forEach(messageNumber -> {
                     InternalPacket packet = resendBuffer[messageNumber & RESEND_BUFFER_ARRAY_MASK];
-                    if (packet != null) {
+                    if (packet != null && packet.actionTime != 0) {
                         packet.actionTime = timeRead;
                     }
                 });
@@ -178,11 +178,9 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     private void removeFromResendList(int messageNumber) {
         int arrayIndex = messageNumber & RESEND_BUFFER_ARRAY_MASK;
         InternalPacket packet = resendBuffer[arrayIndex];
-        if (packet != null) {
-            Validate.isTrue(packet.reliableIndex == messageNumber, "Message number mismatch");
-
+        if (packet != null && packet.reliableMessageNumber == messageNumber) {
+            //Validate.isTrue(packet.reliableMessageNumber == messageNumber, "Reliable message number mismatch, expecting: %d, actual: %d", messageNumber, packet.reliableMessageNumber);
             resendBuffer[arrayIndex] = null;
-
             // TODO: statistic staff
 
             // if receipt is asked or it is the last piece of split packets
@@ -218,7 +216,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         packets.forEach(packet -> {
             if (packet.reliability.isReliable() || packet.reliability.withAckReceipt()) {
-                datagramHistory.add(header.datagramNumber, packet.reliableIndex);
+                datagramHistory.add(header.datagramNumber, packet.reliableMessageNumber);
             }
 
             packet.encode(buf);
@@ -315,7 +313,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             // copy properties
             p.header = packet.header;
             p.headerLength = headerLength;
-            p.reliableIndex = packet.reliableIndex;
+            p.reliableMessageNumber = packet.reliableMessageNumber;
             p.sequencingIndex = packet.sequencingIndex;
             p.orderingIndex = packet.orderingIndex;
             p.orderingChannel = packet.orderingChannel;
@@ -468,7 +466,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     while (iterator.hasNext()) {
                         packet = iterator.next();
 
-                        Validate.isTrue(packet.reliableIndex >= 0);
+                        Validate.isTrue(packet.reliableMessageNumber >= 0);
 
                         if (currentTime - packet.actionTime >= 0) {
                             int packetLength = packet.headerLength + packet.bodyLength();
@@ -499,7 +497,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             packet.retransmissionTime = channel.slidingWindow().getRtoForRetransmission();
                             packet.actionTime = currentTime + packet.retransmissionTime;
 
-                            LOGGER.debug("Resending reliable #{} (rto: {}ms)", packet.reliableIndex, TimeUnit.NANOSECONDS.toMillis(packet.retransmissionTime));
+                            LOGGER.debug("Resending reliable #{} (rto: {}ms)", packet.reliableMessageNumber, TimeUnit.NANOSECONDS.toMillis(packet.retransmissionTime));
 
                             pushed = true;
 
@@ -535,23 +533,14 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                 totalSize = 0;
 
                 // check if the resend buffer is overflowed?
-                while (totalSize < transmissionBandwidth) {
+                while (!isResendBufferOverflow() && totalSize < transmissionBandwidth) {
                     pushed = false;
 
-                    // make sure the resend buffer is not overflowed
-                    if (resendBuffer[reliableWriteIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
-                        break;
-                    }
-
                     while (!sendBuffer.isEmpty()) {
-                        // make sure the resend buffer is not overflowed
-                        if (resendBuffer[reliableWriteIndex & RESEND_BUFFER_ARRAY_MASK] != null) {
-                            break;
-                        }
 
                         packet = sendBuffer.peek().packet;
                         Validate.isTrue(packet.header == null); // is message number not assigned?
-                        Validate.isTrue(packet.reliableIndex < 0); // is message number not assigned?
+                        Validate.isTrue(packet.reliableMessageNumber < 0); // is message number not assigned?
                         //Validate.isTrue(packet.bodyLength < MTUSize.MAXIMUM_MTU_SIZE);
 
                         if (packet.data == null) {
@@ -572,12 +561,15 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         sendBuffer.poll();
 
                         if (packet.reliability.isReliable()) {
-                            packet.reliableIndex = reliableWriteIndex;
+                            // make sure the resend buffer is not overflowed
+                            Validate.isTrue(!isResendBufferOverflow(), "resend buffer is overflowed");
+
+                            packet.reliableMessageNumber = reliableWriteIndex;
                             packet.retransmissionTime = channel.slidingWindow().getRtoForRetransmission();
                             packet.actionTime = currentTime + packet.retransmissionTime;
 
                             // push packet into resend buffer
-                            resendBuffer[packet.reliableIndex & RESEND_BUFFER_ARRAY_MASK] = packet;
+                            resendBuffer[packet.reliableMessageNumber & RESEND_BUFFER_ARRAY_MASK] = packet;
 
                             // insert packet into resend list
                             resendList.add(packet);
@@ -601,6 +593,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                         packet.timeSent++;
 
                         pushed = true;
+
+                        if (isResendBufferOverflow()) break;
                     }
 
                     if (!pushed) break;
@@ -624,6 +618,10 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                 ctx.flush();
             }
         }
+    }
+
+    private boolean isResendBufferOverflow() {
+        return resendBuffer[reliableWriteIndex & RESEND_BUFFER_ARRAY_MASK] != null;
     }
 
     private static final class UnreliableAckReceipt {

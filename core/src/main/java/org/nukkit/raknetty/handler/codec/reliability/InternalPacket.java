@@ -18,7 +18,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
     public int splitPacketId;
     public int splitPacketIndex;
 
-    public int reliableIndex = -1;
+    public int reliableMessageNumber = -1;
     public int sequencingIndex;
     public int orderingIndex;
     public int orderingChannel;
@@ -49,7 +49,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
         buf.writeShort(bitLength);
 
         if (reliability.isReliable()) {
-            buf.writeMediumLE(reliableIndex);
+            buf.writeMediumLE(reliableMessageNumber);
         }
 
         if (reliability.isSequenced()) {
@@ -80,7 +80,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
         Validate.isTrue(!reliability.withAckReceipt(), "ACK_RECEIPT from remote system");
 
         if (reliability.isReliable()) {
-            reliableIndex = buf.readMediumLE();
+            reliableMessageNumber = buf.readMediumLE();
         }
 
         if (reliability.isSequenced()) {
@@ -143,7 +143,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
         }
 
         if (reliability.isReliable()) {
-            builder.append("reliableIndex", reliableIndex);
+            builder.append("reliableIndex", reliableMessageNumber);
 
             if (reliability.isOrdered()) {
                 builder.append("orderingIndex", orderingIndex)
