@@ -2,6 +2,7 @@ package org.nukkit.raknetty.example;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.ByteBufFormat;
@@ -12,10 +13,15 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.nukkit.raknetty.channel.*;
+import org.nukkit.raknetty.channel.RakChannel;
+import org.nukkit.raknetty.channel.RakChannelOption;
+import org.nukkit.raknetty.channel.RakServerChannel;
+import org.nukkit.raknetty.channel.RakServerChannelOption;
 import org.nukkit.raknetty.channel.nio.NioRakChannel;
 import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
 import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.PacketPriority;
+import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.minecraft.MinecraftOfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;
@@ -52,20 +58,32 @@ public class BedrockForwarder {
                 .option(RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                 .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 1)
                 .option(RakServerChannelOption.RAKNET_MTU_SIZES, new int[]{1400})
-                .handler(new LoggingHandler("RakServerLogger", LogLevel.INFO, ByteBufFormat.SIMPLE))
+                .handler(new LoggingHandler("RakServerLogger", LogLevel.DEBUG, ByteBufFormat.SIMPLE))
                 .childHandler(new ChannelInitializer<RakChannel>() {
                     @Override
                     public void initChannel(final RakChannel ch) throws Exception {
                         serverChildChannel = ch;
-                        ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        ch.pipeline().addLast(new ChannelDuplexHandler() {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 // use RakNetty client to send, use assumed priority and reliability
-                                ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
-                                clientChannel.write(envelop);
+                                ByteBuf buf = (ByteBuf) msg;
+                                clientChannel.send(buf, PacketPriority.HIGH_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
+                            }
+
+                            @Override
+                            public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+                                clientChannel.disconnect();
+                                super.close(ctx, promise);
                             }
                         });
-                        ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.INFO, ByteBufFormat.SIMPLE));
+                        ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG, ByteBufFormat.SIMPLE) {
+                            @Override
+                            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+                                ctx.write(msg, promise);
+                                // disable log here
+                            }
+                        });
                         // close the main channel if the child channel is on close
                         ch.closeFuture().addListener((ChannelFutureListener) future -> serverChannel.close());
                     }
@@ -112,19 +130,31 @@ public class BedrockForwarder {
                 .handler(new ChannelInitializer<NioRakChannel>() {
                     @Override
                     protected void initChannel(NioRakChannel ch) throws Exception {
-                        ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        ch.pipeline().addLast(new ChannelDuplexHandler() {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 // use RakNetty client to send, use assumed priority and reliability
-                                ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
-                                serverChildChannel.write(envelop);
+                                ByteBuf buf = (ByteBuf) msg;
+                                serverChildChannel.send(buf, PacketPriority.HIGH_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
+                            }
+
+                            @Override
+                            public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+                                serverChildChannel.disconnect();
+                                super.close(ctx, promise);
                             }
                         });
-                        ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.INFO, ByteBufFormat.SIMPLE));
+                        ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.DEBUG, ByteBufFormat.SIMPLE) {
+                            @Override
+                            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+                                ctx.write(msg, promise);
+                                // disable log here
+                            }
+                        });
                     }
                 });
         // Start the server.
-        final ChannelFuture future = boot.connect("kk.rekonquer.com", 19132).sync();
+        final ChannelFuture future = boot.connect("play.cubecraft.net", 19132).sync();
         LOGGER.info("RakNetty client is connected successfully.");
 
         clientChannel = (RakChannel) future.channel();
