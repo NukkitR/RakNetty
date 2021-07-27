@@ -189,11 +189,8 @@ public class SlidingWindow {
         double q = 4.0d;
 
         long threshold = (long) ((u * estimatedRtt + q * deviationRtt) + additionalVariance);
-        if (threshold > maxThreshold) {
-            return maxThreshold;
-        }
 
-        return threshold;
+        return Math.min(threshold, maxThreshold);
     }
 
     public void setMtu(int mtuSize) {

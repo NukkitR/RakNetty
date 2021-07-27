@@ -3,26 +3,29 @@ package org.nukkit.raknetty.handler.codec.reliability;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
-import org.nukkit.raknetty.channel.ReliabilityByteEnvelop;
-import org.nukkit.raknetty.channel.ReliabilityEnvelop;
-import org.nukkit.raknetty.channel.ReliabilityMessageEnvelop;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.util.PacketUtil;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReliabilityMessageHandler.class);
+    public static final String NAME = "ReliabilityMessageHandler";
     private static final int PING_TIMES_ARRAY_SIZE = 5;
     public static final int MAX_PING = 0xffff;
 
@@ -79,34 +82,30 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ReliabilityByteEnvelop envelop = (ReliabilityByteEnvelop) msg;
-        ByteBuf buf = envelop.message();
-
+        ByteBuf buf = (ByteBuf) msg;
         boolean release = true;
-
         MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
-
         ConnectMode connectMode = channel.connectMode();
-
-        // For unknown senders we only accept a few specific packets
-        if (connectMode == ConnectMode.UNVERIFIED_SENDER) {
-            if (id != MessageIdentifier.ID_CONNECTION_REQUEST) {
-                channel.close();
-
-                LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
-                channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeoutMillis());
-
-                return;
-            }
-        }
-
-        // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
-        if (id == null) {
-            id = MessageIdentifier.ID_USER_PACKET_ENUM;
-        }
 
         // try to decode
         try {
+            // For unknown senders we only accept a few specific packets
+            if (connectMode == ConnectMode.UNVERIFIED_SENDER) {
+                if (id != MessageIdentifier.ID_CONNECTION_REQUEST) {
+                    channel.close();
+
+                    LOGGER.debug("Temporarily banning {} for sending bad data", channel.remoteAddress());
+                    channel.parent().banList().add(channel.remoteAddress(), channel.config().getTimeoutMillis());
+
+                    return;
+                }
+            }
+
+            // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
+            if (id == null) {
+                id = MessageIdentifier.ID_USER_PACKET_ENUM;
+            }
+
             switch (id) {
                 case ID_CONNECTION_REQUEST -> {
                     if (connectMode == ConnectMode.UNVERIFIED_SENDER || connectMode == ConnectMode.REQUESTED_CONNECTION) {
@@ -120,6 +119,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         out.clientAddress = channel.remoteAddress();
                         out.requestTime = in.requestTime;
                         out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+                        fillIpList(out.ipList);
+
+                        LOGGER.debug("SEND: {}", out);
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
                     }
@@ -155,7 +157,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                     long currentTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
-                    LOGGER.debug("PING_RECV");
+                    //LOGGER.debug("PING_RECV");
 
                     ConnectedPong out = new ConnectedPong();
                     out.pingTime = in.pingTime;
@@ -164,7 +166,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                     channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
                 }
                 case ID_DISCONNECTION_NOTIFICATION -> {
-                    LOGGER.debug("READ: ID_DISCONNECTION_NOTIFICATION");
+                    LOGGER.debug("CLOSE: ID_DISCONNECTION_NOTIFICATION");
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
                     channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
                 }
@@ -194,6 +196,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         out.serverAddress = channel.remoteAddress();
                         out.pingTime = in.replyTime;
                         out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+                        fillIpList(out.clientAddresses);
+
+                        LOGGER.debug("SEND: {}", out);
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
 
@@ -210,6 +215,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
             }
         } catch (Exception e) {
             LOGGER.debug("READ: bad packet {} from {}", id, channel.remoteAddress());
+
         } finally {
             if (release) {
                 ReferenceCountUtil.release(msg);
@@ -229,30 +235,26 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
         pingArrayIndex = (pingArrayIndex + 1) % PING_TIMES_ARRAY_SIZE;
     }
 
-    @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        ReliabilityEnvelop<?> envelop = (ReliabilityEnvelop<?>) msg;
-        ByteBuf buf;
+    private void fillIpList(InetSocketAddress[] ipList) {
+        Validate.notNull(ipList);
+        if (ipList[0].getPort() != 0) return; // ip list has already been filled
 
-        if (envelop instanceof ReliabilityMessageEnvelop e) {
-            int mtuSize = channel.mtuSize();
-            buf = ctx.alloc().ioBuffer(mtuSize, mtuSize);
-            e.message().encode(buf);
+        try {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            int index = 0;
 
-        } else if (envelop instanceof ReliabilityByteEnvelop e) {
-            buf = e.message();
+            for (NetworkInterface netIf : interfaces) {
+                if (netIf.isLoopback()) continue;
+                List<InetAddress> addresses = Collections.list(netIf.getInetAddresses());
 
-        } else {
-            throw new UnsupportedOperationException("unknown content type: " + envelop.message().getClass());
+                for (InetAddress address : addresses) {
+                    if (address.isLoopbackAddress()) break;
+                    if (index + 1 == ipList.length) return;
+
+                    ipList[index++] = new InetSocketAddress(address, channel.localAddress().getPort());
+                }
+            }
+        } catch (Exception ignored) {
         }
-
-        InternalPacket packet = new InternalPacket();
-        packet.data = buf;
-
-        packet.reliability = envelop.reliability();
-        packet.priority = envelop.priority();
-        packet.orderingChannel = envelop.orderingChannel();
-
-        ctx.write(packet);
     }
 }

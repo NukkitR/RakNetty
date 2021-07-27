@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.channel;
 
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.socket.DatagramChannel;
 import org.nukkit.raknetty.channel.nio.NioRakChannel;
@@ -34,6 +35,8 @@ public interface RakChannel extends Channel {
     int averagePing();
 
     void send(ReliabilityMessage message, PacketPriority priority, PacketReliability reliability, int orderingChannel);
+
+    void send(ByteBuf message, PacketPriority priority, PacketReliability reliability, int orderingChannel);
 
     SlidingWindow slidingWindow();
 

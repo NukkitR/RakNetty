@@ -9,7 +9,6 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.channel.ReliabilityByteEnvelop;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 
@@ -30,12 +29,12 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
     /**
      * The packet number we are expecting
      */
-    private int receivedBaseIndex = 0;
+    private int receivedBaseNumber = 0;
 
     /**
      * The maximum packet number we have ever received
      */
-    private int receivedTopIndex = 0;
+    private int receivedTopNumber = 0;
 
     private final PriorityQueue<HeapedPacket>[] orderingHeaps = new PriorityQueue[NUMBER_OF_ORDERED_STREAMS];
     private final SplitPacketList splitPacketList = new SplitPacketList();
@@ -109,8 +108,8 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 // if (header.isPacketPair)
 
                 // insert missing indices to NAK list
-                for (int i = skippedDatagram; skippedDatagram > 0; skippedDatagram--) {
-                    out.sendNak(header.datagramNumber - skippedDatagram);
+                for (int i = skippedDatagram; i > 0; i--) {
+                    out.sendNak(header.datagramNumber - i);
                 }
 
                 // flag if the remote system asked for B and As
@@ -138,15 +137,15 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 
         // check if we missed some reliable messages?
         if (packet.reliability.isReliable()) {
-            int holeIndex = packet.reliableMessageNumber - receivedBaseIndex;
-            int holeSize = receivedTopIndex - receivedBaseIndex + 1;
+            int holeIndex = packet.reliableMessageNumber - receivedBaseNumber;
+            int holeSize = receivedTopNumber - receivedBaseNumber + 1;
 
             if (holeIndex == 0) {
                 // got a packet that we were expecting
                 // Reliability.cpp#L956 hasReceivedPacketQueue.Pop();
                 hasReceived.remove(packet.reliableMessageNumber);
                 // move the base index
-                ++receivedBaseIndex;
+                ++receivedBaseNumber;
                 // fill the hole
                 --holeSize;
 
@@ -172,27 +171,27 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 // holeIndex >= holeSize
                 Validate.isTrue(holeIndex < 100000, "hole count too high");
                 // expand the hole
-                receivedTopIndex = packet.reliableMessageNumber;
-                hasReceived.add(receivedTopIndex);
+                receivedTopNumber = packet.reliableMessageNumber;
+                hasReceived.add(receivedTopNumber);
             }
 
             while (holeSize > 0) {
-                boolean received = hasReceived.contains(receivedBaseIndex);
+                boolean received = hasReceived.contains(receivedBaseNumber);
                 if (!received) break;
 
-                hasReceived.remove(receivedBaseIndex);
-                ++receivedBaseIndex;
+                hasReceived.remove(receivedBaseNumber);
+                ++receivedBaseNumber;
                 --holeSize;
             }
 
             // keep top always >= base
-            receivedTopIndex = Math.max(receivedBaseIndex, receivedTopIndex);
+            receivedTopNumber = Math.max(receivedBaseNumber, receivedTopNumber);
         }
 
         // reassemble if this is a split packet
         if (packet.splitPacketCount > 0) {
 
-            LOGGER.debug("READ: Split packet #{} {}/{}", packet.splitPacketId, packet.splitPacketIndex, packet.splitPacketCount);
+            //LOGGER.debug("READ: Split packet #{} {}/{}", packet.splitPacketId, packet.splitPacketIndex, packet.splitPacketCount);
 
             if (!packet.reliability.isOrdered()) {
                 packet.orderingChannel = 255;
@@ -207,7 +206,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
             }
 
 
-            LOGGER.debug("READ: Split packet #{} ready", packet.splitPacketId);
+            LOGGER.debug("READ: Split packet #{} ready, size={}", packet.splitPacketId, packet.data.writerIndex());
 
             // send ACKs immediately, because for large files this can take a long time
             out.doSendAck();
@@ -299,7 +298,8 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void fireChannelRead(ChannelHandlerContext ctx, InternalPacket packet) {
-        ctx.fireChannelRead(new ReliabilityByteEnvelop(packet.data, packet.priority, packet.reliability, packet.orderingChannel));
+        ctx.fireChannelRead(packet.data);
+        //ctx.fireChannelRead(new ReliabilityByteEnvelop(packet.data, packet.priority, packet.reliability, packet.orderingChannel));
     }
 
     private boolean isOlderPacket(int actualIndex, int expectingIndex) {

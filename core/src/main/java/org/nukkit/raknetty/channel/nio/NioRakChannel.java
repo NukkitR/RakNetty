@@ -1,5 +1,6 @@
 package org.nukkit.raknetty.channel.nio;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelPromise;
@@ -11,15 +12,14 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.*;
-import org.nukkit.raknetty.handler.codec.Message;
+import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.handler.codec.offline.ConnectionAttemptFailed;
-import org.nukkit.raknetty.handler.codec.offline.ConnectionLost;
 import org.nukkit.raknetty.handler.codec.offline.DefaultClientOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
 import org.nukkit.raknetty.handler.codec.reliability.*;
+import org.nukkit.raknetty.util.PacketUtil;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.nukkit.raknetty.handler.codec.Message.RAKNET_PROTOCOL_VERSION;
+import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 import static org.nukkit.raknetty.handler.codec.reliability.ReliabilityMessageHandler.MAX_PING;
 
 public class NioRakChannel extends AbstractRakDatagramChannel implements RakChannel {
@@ -46,7 +47,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     private ChannelPromise connectPromise;
     private Future<?> connectTask;
     private ScheduledFuture<?> connectTimeoutFuture;
-    //private SocketAddress requestedRemoteAddress;
 
     private InetSocketAddress remoteAddress;
     private long remoteGuid;
@@ -74,7 +74,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
         pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
-        pipeline().addLast(messageHandler);
+        pipeline().addLast(ReliabilityMessageHandler.NAME, messageHandler);
     }
 
     @Override
@@ -187,8 +187,28 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
-            ReliabilityMessageEnvelop envelop = new ReliabilityMessageEnvelop(message, priority, reliability, orderingChannel);
-            pipeline().write(envelop);
+            // create with a slightly larger capacity to optimise for most split packets
+            ByteBuf buf = alloc().ioBuffer(2048);
+            message.encode(buf);
+            send(buf, priority, reliability, orderingChannel);
+        }
+    }
+
+    @Override
+    public void send(final ByteBuf message, final PacketPriority priority, final PacketReliability reliability, final int orderingChannel) {
+        if (!eventLoop().inEventLoop()) {
+            eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
+
+        } else {
+
+            InternalPacket packet = new InternalPacket();
+            packet.data = message;
+
+            packet.reliability = (reliability == null ? PacketReliability.RELIABLE : reliability);
+            packet.priority = (priority == null ? PacketPriority.HIGH_PRIORITY : priority);
+            packet.orderingChannel = (orderingChannel < 0 || orderingChannel > NUMBER_OF_ORDERED_STREAMS ? 0 : orderingChannel);
+
+            pipeline().write(packet);
 
             if (priority == PacketPriority.IMMEDIATE_PRIORITY) {
                 updateImmediately();
@@ -478,24 +498,24 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 }
 
                 if (closeConnection) {
-                    Message closeMessage = null;
+                    ByteBuf closeMessage = alloc().ioBuffer(1, 1);
                     switch (connectMode) {
                         case REQUESTED_CONNECTION:
-                            closeMessage = new ConnectionAttemptFailed();
+                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_ATTEMPT_FAILED);
                             break;
                         case CONNECTED:
-                            closeMessage = new ConnectionLost();
+                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_LOST);
                             break;
                         case DISCONNECT_ASAP:
                         case DISCONNECT_ON_NO_ACK:
-                            closeMessage = new DisconnectionNotification();
+                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_DISCONNECTION_NOTIFICATION);
                             break;
                         default:
                             break;
                     }
 
                     if (closeMessage != null) {
-                        //TODO: fire channel read? pipeline().fireChannelRead(closeMessage);
+                        pipeline().context(messageHandler).fireChannelRead(closeMessage);
                     }
 
                     if (isOpen()) {
@@ -529,5 +549,4 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             }
         }
     }
-
 }

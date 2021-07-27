@@ -19,7 +19,7 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
 
     public ConnectionRequestAccepted(int numberOfInternalIds) {
         ipList = new InetSocketAddress[numberOfInternalIds];
-        Arrays.fill(ipList, UNASSIGNED_SYSTEM_ADDRESS);
+        Arrays.fill(ipList, new InetSocketAddress(0));
     }
 
     @Override

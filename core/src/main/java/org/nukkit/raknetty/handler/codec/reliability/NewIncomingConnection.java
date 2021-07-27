@@ -18,7 +18,7 @@ public class NewIncomingConnection implements ReliabilityMessage {
 
     public NewIncomingConnection(int numberOfInternalIds) {
         clientAddresses = new InetSocketAddress[numberOfInternalIds];
-        Arrays.fill(clientAddresses, UNASSIGNED_SYSTEM_ADDRESS);
+        Arrays.fill(clientAddresses, new InetSocketAddress(0));
     }
 
     @Override

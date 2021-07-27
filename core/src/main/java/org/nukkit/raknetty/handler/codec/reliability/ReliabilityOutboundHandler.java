@@ -75,7 +75,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void onAck(AcknowledgePacket ack, long timeRead) {
-        LOGGER.debug("RECV_ACK: " + ack);
+        //LOGGER.debug("RECV_ACK: " + ack);
         ack.indices().forEach(datagramNumber -> {
 
             // remove if the message is sent in an unreliable way
@@ -110,7 +110,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             DatagramHistory.Node node = datagramHistory.get(datagramNumber);
             if (node != null) {
-
                 // update timers so resends occur in this next update.
                 node.messages.forEach(messageNumber -> {
                     InternalPacket packet = resendBuffer[messageNumber & RESEND_BUFFER_ARRAY_MASK];
@@ -129,7 +128,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
         while (!ACKs.isEmpty()) {
             // if (needsBandAs) is deprecated
-            LOGGER.debug("SEND_ACK: {}", ACKs);
+            // LOGGER.debug("SEND_ACK: {}", ACKs);
 
             ByteBuf buf = channel.alloc().ioBuffer(mtuSize, mtuSize);
             header.encode(buf);
@@ -268,8 +267,8 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             }
 
             if (splitPacket) {
-                LOGGER.debug("SPLIT: body length {} is greater than the maximum size {}", packet.bodyLength(), maxSize);
-                splitPacket(packet);
+                //LOGGER.debug("SPLIT: body length {} is greater than the maximum size {}", packet.bodyLength(), maxSize);
+                doSplitPacket(packet);
                 return;
             }
 
@@ -286,7 +285,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         }
     }
 
-    private void splitPacket(InternalPacket packet) {
+    private void doSplitPacket(InternalPacket packet) {
 
         Validate.isTrue(channel.mtuSize() > 0, "mtu size is not defined.");
 
@@ -367,7 +366,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void update() {
-
         long currentTime = System.nanoTime();
 
         ctx = channel.pipeline().context(this);
@@ -386,10 +384,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             // sliding window is not created yet, meaning that we don't know the mtu size
             return;
         }
+
         int mtuSize = channel.mtuSize();
 
         // check unreliable timeout
-        int unreliableTimeout = channel.config().getUnreliableTimeoutMillis();
+        long unreliableTimeout = TimeUnit.MILLISECONDS.toNanos(channel.config().getUnreliableTimeoutMillis());
         if (unreliableTimeout > 0) {
             if (elapsedTime - nextUnreliableCull >= 0) {
 
@@ -426,13 +425,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         Iterator<Map.Entry<Integer, UnreliableAckReceipt>> it = unreliableReceipts.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Integer, UnreliableAckReceipt> history = it.next();
-            //int messageNum = history.getKey();
             UnreliableAckReceipt receipt = history.getValue();
 
             if (currentTime - receipt.actionTime >= 0) {
                 channel.pipeline().fireUserEventTriggered(
                         new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_LOSS, receipt.serial));
-
                 it.remove();
             }
         }
@@ -598,8 +595,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                     }
 
                     if (!pushed) break;
-
-                    //LOGGER.debug("WRITE DATAGRAM");
 
                     // push packets into a datagram
                     writeDatagram(header, sendList);
