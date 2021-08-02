@@ -14,11 +14,16 @@ public final class DatagramHeader implements Cloneable {
     }
 
     public static DatagramHeader getHeader(Type type) {
-        return switch (type) {
-            case NAK -> new DatagramHeader(0xA0);
-            case ACK -> new DatagramHeader(0xC0);
-            case DATA -> new DatagramHeader(0x80);
-        };
+        switch (type) {
+            case NAK:
+                return new DatagramHeader(0xA0);
+            case ACK:
+                return new DatagramHeader(0xC0);
+            case DATA:
+                return new DatagramHeader(0x80);
+            default:
+                return null;
+        }
     }
 
     public boolean isValid;

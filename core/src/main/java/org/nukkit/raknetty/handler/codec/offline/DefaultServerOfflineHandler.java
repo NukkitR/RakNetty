@@ -43,7 +43,9 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
         long now = System.nanoTime();
 
         try {
-            if (msg instanceof UnconnectedPing in) {
+            if (msg instanceof UnconnectedPing) {
+                UnconnectedPing in = (UnconnectedPing) msg;
+
                 if (msg instanceof UnconnectedPingOpenConnections && !channel().allowNewConnections()) {
                     return;
                 }
@@ -58,7 +60,8 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
             LOGGER.debug("READ: {}", msg);
 
-            if (msg instanceof OpenConnectionRequest1 in) {
+            if (msg instanceof OpenConnectionRequest1) {
+                OpenConnectionRequest1 in = (OpenConnectionRequest1) msg;
 
                 // check if we are receiving a connection request from an incompatible client
                 // if true, close the connection request.
@@ -87,7 +90,8 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 return;
             }
 
-            if (msg instanceof OpenConnectionRequest2 in) {
+            if (msg instanceof OpenConnectionRequest2) {
+                OpenConnectionRequest2 in = (OpenConnectionRequest2) msg;
 
                 // if the client skipped OpenConnectionRequest1 or the request was timed out
                 if (!isRequestValid(sender)) {

@@ -32,7 +32,8 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
-        if (msg instanceof DatagramPacket packet) {
+        if (msg instanceof DatagramPacket) {
+            DatagramPacket packet = (DatagramPacket) msg;
             InetSocketAddress sender = packet.sender();
 
             if (!sender.equals(channel().remoteAddress())) {
@@ -55,7 +56,8 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
         long now = System.nanoTime();
         LOGGER.debug("READ: {}", msg);
 
-        if (msg instanceof OpenConnectionReply1 in) {
+        if (msg instanceof OpenConnectionReply1) {
+            OpenConnectionReply1 in = (OpenConnectionReply1) msg;
 
             OpenConnectionRequest2 out = new OpenConnectionRequest2();
             out.serverAddress = sender;
@@ -66,7 +68,8 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
             return;
         }
 
-        if (msg instanceof OpenConnectionReply2 in) {
+        if (msg instanceof OpenConnectionReply2) {
+            OpenConnectionReply2 in = (OpenConnectionReply2) msg;
             channel().connectMode(RakChannel.ConnectMode.REQUESTED_CONNECTION);
 
             // update the channel's mtu size

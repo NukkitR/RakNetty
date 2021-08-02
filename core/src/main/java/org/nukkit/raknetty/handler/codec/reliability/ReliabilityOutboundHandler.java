@@ -237,18 +237,25 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         long currentTime = System.nanoTime();
         this.ctx = ctx;
 
-        if (msg instanceof InternalPacket packet) {
-
+        if (msg instanceof InternalPacket) {
+            InternalPacket packet = (InternalPacket) msg;
             int maxSize = channel.slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
             boolean splitPacket = packet.bodyLength() > maxSize;
 
             if (splitPacket) {
-                packet.reliability = switch (packet.reliability) {
-                    case UNRELIABLE -> PacketReliability.RELIABLE;
-                    case UNRELIABLE_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE_WITH_ACK_RECEIPT;
-                    case UNRELIABLE_SEQUENCED -> PacketReliability.RELIABLE_SEQUENCED;
-                    default -> packet.reliability;
-                };
+                switch (packet.reliability) {
+                    case UNRELIABLE:
+                        packet.reliability = PacketReliability.RELIABLE;
+                        break;
+                    case UNRELIABLE_WITH_ACK_RECEIPT:
+                        packet.reliability = PacketReliability.RELIABLE_WITH_ACK_RECEIPT;
+                        break;
+                    case UNRELIABLE_SEQUENCED:
+                        packet.reliability = PacketReliability.RELIABLE_SEQUENCED;
+                        break;
+                    default:
+                        break;
+                }
             }
 
             if (packet.reliability.isSequenced()) {

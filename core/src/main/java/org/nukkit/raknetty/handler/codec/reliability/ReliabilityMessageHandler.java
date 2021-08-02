@@ -107,7 +107,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
             }
 
             switch (id) {
-                case ID_CONNECTION_REQUEST -> {
+                case ID_CONNECTION_REQUEST: {
                     if (connectMode == ConnectMode.UNVERIFIED_SENDER || connectMode == ConnectMode.REQUESTED_CONNECTION) {
                         ConnectionRequest in = new ConnectionRequest();
                         in.decode(buf);
@@ -125,8 +125,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
                     }
+                    break;
                 }
-                case ID_NEW_INCOMING_CONNECTION -> {
+                case ID_NEW_INCOMING_CONNECTION: {
                     if (channel.connectMode() == ConnectMode.HANDLING_CONNECTION_REQUEST) {
 
                         // set channel state to CONNECTED
@@ -142,16 +143,18 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         onConnectedPong(in.pingTime, in.pongTime);
                     }
+                    break;
                 }
-                case ID_CONNECTED_PONG -> {
+                case ID_CONNECTED_PONG: {
                     ConnectedPong in = new ConnectedPong();
                     in.decode(buf);
 
                     onConnectedPong(in.pingTime, in.pongTime);
 
                     LOGGER.debug("PONG_RECV: {} ms", averagePing());
+                    break;
                 }
-                case ID_CONNECTED_PING -> {
+                case ID_CONNECTED_PING: {
                     ConnectedPing in = new ConnectedPing();
                     in.decode(buf);
 
@@ -164,15 +167,17 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                     out.pongTime = currentTime;
 
                     channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.UNRELIABLE, 0);
+                    break;
                 }
-                case ID_DISCONNECTION_NOTIFICATION -> {
+                case ID_DISCONNECTION_NOTIFICATION: {
                     LOGGER.debug("CLOSE: ID_DISCONNECTION_NOTIFICATION");
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
                     channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
+                    break;
                 }
                 // case ID_DETECT_LOST_CONNECTIONS:
                 // case ID_INVALID_PASSWORD:
-                case ID_CONNECTION_REQUEST_ACCEPTED -> {
+                case ID_CONNECTION_REQUEST_ACCEPTED: {
 
                     // if we are in a situation to wait to be connected
                     boolean canConnect = connectMode == ConnectMode.HANDLING_CONNECTION_REQUEST ||
@@ -206,8 +211,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                             channel.ping(PacketReliability.UNRELIABLE);
                         }
                     }
+                    break;
                 }
-                default -> {
+                default: {
                     // give the rest to the user
                     release = false;
                     ctx.fireChannelRead(msg);

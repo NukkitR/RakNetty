@@ -28,12 +28,21 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
     @Override
     public void encode(ByteBuf buf) {
         byte flag = 0;
-        PacketReliability temp = switch (this.reliability) {
-            case UNRELIABLE_WITH_ACK_RECEIPT -> PacketReliability.UNRELIABLE;
-            case RELIABLE_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE;
-            case RELIABLE_ORDERED_WITH_ACK_RECEIPT -> PacketReliability.RELIABLE_ORDERED;
-            default -> this.reliability;
-        };
+        PacketReliability temp;
+
+        switch (this.reliability) {
+            case UNRELIABLE_WITH_ACK_RECEIPT:
+                temp = PacketReliability.UNRELIABLE;
+                break;
+            case RELIABLE_WITH_ACK_RECEIPT:
+                temp = PacketReliability.RELIABLE;
+                break;
+            case RELIABLE_ORDERED_WITH_ACK_RECEIPT:
+                temp = PacketReliability.RELIABLE_ORDERED;
+                break;
+            default:
+                temp = this.reliability;
+        }
 
         flag |= temp.ordinal() << 5;
 
