@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 public class IpRecentlyConnected implements OfflineMessage {
 
@@ -12,7 +12,7 @@ public class IpRecentlyConnected implements OfflineMessage {
 
     @Override
     public void encode(ByteBuf buf) {
-        PacketUtil.writeByte(buf, MessageIdentifier.ID_IP_RECENTLY_CONNECTED);
+        ByteUtil.writeByte(buf, MessageIdentifier.ID_IP_RECENTLY_CONNECTED);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
         buf.writeLong(senderGuid);
     }

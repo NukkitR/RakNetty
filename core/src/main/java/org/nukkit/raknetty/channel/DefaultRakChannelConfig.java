@@ -3,8 +3,8 @@ package org.nukkit.raknetty.channel;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
-import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
-import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.DefaultOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -35,7 +35,17 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
 
     @Override
     public Map<ChannelOption<?>, Object> getOptions() {
-        return getOptions(udpChannel.config().getOptions(), RakChannelOption.RAKNET_GUID);
+        return getOptions(udpChannel.config().getOptions(),
+                RakChannelOption.RAKNET_GUID,
+                RakChannelOption.RAKNET_MTU_SIZES,
+                RakChannelOption.RAKNET_CONNECT_ATTEMPTS,
+                RakChannelOption.RAKNET_CONNECT_INTERVAL,
+                RakChannelOption.RAKNET_CONNECT_TIMEOUT,
+                RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT,
+                RakChannelOption.RAKNET_TIMEOUT,
+                RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS,
+                RakChannelOption.RAKNET_OFFLINE_PING_RESPONDER
+        );
     }
 
     @SuppressWarnings("unchecked")

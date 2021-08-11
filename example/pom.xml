@@ -24,7 +24,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>raknetty-minecraft</artifactId>
+            <artifactId>raknetty-bedrock</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -46,6 +46,18 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+            <version>3.18.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.7</version>
         </dependency>
     </dependencies>
 

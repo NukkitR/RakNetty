@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetSocketAddress;
 
@@ -16,9 +16,9 @@ public class OpenConnectionRequest2 implements OfflineMessage {
 
     @Override
     public void encode(ByteBuf buf) {
-        PacketUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REQUEST_2);
+        ByteUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REQUEST_2);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
-        PacketUtil.writeAddress(buf, serverAddress);
+        ByteUtil.writeAddress(buf, serverAddress);
         buf.writeShort(mtuSize);
         buf.writeLong(clientGuid);
     }
@@ -27,7 +27,7 @@ public class OpenConnectionRequest2 implements OfflineMessage {
     public void decode(ByteBuf buf) {
         buf.skipBytes(1);
         buf.skipBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID.length);
-        serverAddress = PacketUtil.readAddress(buf);
+        serverAddress = ByteUtil.readAddress(buf);
         mtuSize = buf.readShort();
         clientGuid = buf.readLong();
     }

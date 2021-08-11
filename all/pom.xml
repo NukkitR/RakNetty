@@ -20,7 +20,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>raknetty-minecraft</artifactId>
+            <artifactId>raknetty-bedrock</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

@@ -15,6 +15,8 @@ import java.net.InetSocketAddress;
 
 public interface RakChannel extends Channel {
 
+    boolean isClient();
+
     long localGuid();
 
     long remoteGuid();

@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -24,11 +24,11 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
 
     @Override
     public void encode(ByteBuf buf) {
-        PacketUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_REQUEST_ACCEPTED);
-        PacketUtil.writeAddress(buf, clientAddress);
+        ByteUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_REQUEST_ACCEPTED);
+        ByteUtil.writeAddress(buf, clientAddress);
         buf.writeShort(systemIndex);
         for (int i = 0; i < ipList.length; i++) {
-            PacketUtil.writeAddress(buf, ipList[i]);
+            ByteUtil.writeAddress(buf, ipList[i]);
         }
         buf.writeLong(requestTime);
         buf.writeLong(replyTime);
@@ -37,11 +37,11 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
     @Override
     public void decode(ByteBuf buf) {
         buf.skipBytes(1);
-        clientAddress = PacketUtil.readAddress(buf);
+        clientAddress = ByteUtil.readAddress(buf);
         systemIndex = buf.readShort();
         for (int i = 0; i < ipList.length; i++) {
             if (buf.readableBytes() <= 16) break;
-            ipList[i] = PacketUtil.readAddress(buf);
+            ipList[i] = ByteUtil.readAddress(buf);
         }
         requestTime = buf.readLong();
         replyTime = buf.readLong();

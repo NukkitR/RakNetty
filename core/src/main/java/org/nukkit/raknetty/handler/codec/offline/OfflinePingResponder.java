@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.handler.codec;
+package org.nukkit.raknetty.handler.codec.offline;
 
 import io.netty.buffer.ByteBuf;
 

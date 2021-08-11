@@ -1,5 +1,6 @@
 package org.nukkit.raknetty.channel;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
@@ -10,7 +11,7 @@ public class DefaultRakServerChannelConfig extends DefaultRakChannelConfig imple
 
     private volatile int maxConnections = 20;
 
-    public DefaultRakServerChannelConfig(RakServerChannel channel, DatagramChannel udpChannel) {
+    public DefaultRakServerChannelConfig(Channel channel, DatagramChannel udpChannel) {
         super(channel, udpChannel);
     }
 

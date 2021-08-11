@@ -1,11 +1,11 @@
-package org.nukkit.raknetty.handler.codec.reliability;
+package org.nukkit.raknetty.channel.event;
 
-public class AcknowledgeEvent {
+public final class ReceiptAcknowledgeEvent extends RakChannelEvent {
 
     private final AcknowledgeState state;
     private final int receiptSerial;
 
-    public AcknowledgeEvent(AcknowledgeState state, int receiptSerial) {
+    public ReceiptAcknowledgeEvent(AcknowledgeState state, int receiptSerial) {
         this.state = state;
         this.receiptSerial = receiptSerial;
     }
@@ -19,7 +19,7 @@ public class AcknowledgeEvent {
     }
 
     public enum AcknowledgeState {
-        RECEIPT_ACKED,
-        RECEIPT_LOSS
+        ACKED,
+        LOSS
     }
 }

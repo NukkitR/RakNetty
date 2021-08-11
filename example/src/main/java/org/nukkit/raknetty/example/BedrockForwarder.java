@@ -19,10 +19,10 @@ import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
 import org.nukkit.raknetty.channel.nio.NioRakChannel;
 import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
-import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.handler.codec.minecraft.MinecraftOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.bedrock.BedrockOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -103,7 +103,7 @@ public class BedrockForwarder {
         });
 
         // Setup the offline responder
-        final OfflinePingResponder responder = new MinecraftOfflinePingResponder(serverChannel, null)
+        final OfflinePingResponder responder = new BedrockOfflinePingResponder(serverChannel, null)
                 .serverName("Bedrock Server by RakNetty")
                 .protocolVersion(440)
                 .gameVersion("1.17.2")
@@ -154,7 +154,7 @@ public class BedrockForwarder {
                     }
                 });
         // Start the server.
-        final ChannelFuture future = boot.connect("play.cubecraft.net", 19132).sync();
+        final ChannelFuture future = boot.connect("pe.mineplex.com", 19132).sync();
         LOGGER.info("RakNetty client is connected successfully.");
 
         clientChannel = (RakChannel) future.channel();

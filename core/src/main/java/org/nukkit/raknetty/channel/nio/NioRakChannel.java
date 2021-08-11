@@ -19,7 +19,7 @@ import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.offline.DefaultClientOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
 import org.nukkit.raknetty.handler.codec.reliability.*;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -70,11 +70,20 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent, udpChannel);
-        config = new DefaultRakChannelConfig(this, udpChannel);
+        config = newConfig();
 
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
         pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
         pipeline().addLast(ReliabilityMessageHandler.NAME, messageHandler);
+    }
+
+    protected RakChannelConfig newConfig() {
+        return new DefaultRakChannelConfig(this, udpChannel());
+    }
+
+    @Override
+    public final boolean isClient() {
+        return parent() == null;
     }
 
     @Override
@@ -98,8 +107,10 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     protected void doClose() throws Exception {
         isOpen = false;
 
-        if (parent() == null) {
+        if (isClient()) {
             udpChannel().close();
+        } else {
+            parent().removeChildChannel(remoteAddress());
         }
 
         if (connectPromise != null) {
@@ -115,6 +126,8 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
+        if (!isClient()) throw new UnsupportedOperationException();
+
         if (localAddress == null) {
             localAddress = new InetSocketAddress(0);
         }
@@ -143,6 +156,9 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     protected void doDisconnect() throws Exception {
+        if (!isClient()) {
+            throw new UnsupportedOperationException();
+        }
 
         LOGGER.debug("DISCONNECTING...");
 
@@ -208,7 +224,8 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             packet.priority = (priority == null ? PacketPriority.HIGH_PRIORITY : priority);
             packet.orderingChannel = (orderingChannel < 0 || orderingChannel > NUMBER_OF_ORDERED_STREAMS ? 0 : orderingChannel);
 
-            pipeline().write(packet);
+            pipeline().context(messageHandler).write(packet);
+            //pipeline().write(packet);
 
             if (priority == PacketPriority.IMMEDIATE_PRIORITY) {
                 updateImmediately();
@@ -270,7 +287,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     public long localGuid() {
-        return parent() == null ? config().getLocalGuid() : parent().localGuid();
+        return isClient() ? config().getLocalGuid() : parent().localGuid();
     }
 
     @Override
@@ -304,14 +321,14 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     }
 
     protected NioRakChannel remoteAddress(InetSocketAddress address) {
-        Validate.isTrue(remoteAddress == null);
+        Validate.isTrue(remoteAddress == null, "remote address has already been assigned");
         remoteAddress = address;
         return this;
     }
 
     @Override
     public ChannelMetadata metadata() {
-        return METADATA;
+        return isClient() ? METADATA : parent().metadata();
     }
 
     @Override
@@ -323,6 +340,10 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
         @Override
         public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+            if (!isClient()) {
+                throw new UnsupportedOperationException();
+            }
+
             if (!promise.setUncancellable() || !ensureOpen(promise)) {
                 return;
             }
@@ -414,8 +435,8 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         @Override
         public void run() {
 
-            int attempts = config.getConnectAttempts();
-            int[] mtuSizes = config.getMtuSizes();
+            int attempts = config().getConnectAttempts();
+            int[] mtuSizes = config().getMtuSizes();
             int mtuNum = mtuSizes.length;
 
             if (connectMode() == ConnectMode.REQUESTED_CONNECTION || connectMode() == ConnectMode.CONNECTED) {
@@ -433,7 +454,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             requestsMade++;
 
             // schedule next connection request
-            connectTask = eventLoop().schedule(this, config.getConnectIntervalMillis(), TimeUnit.MILLISECONDS);
+            connectTask = eventLoop().schedule(this, config().getConnectIntervalMillis(), TimeUnit.MILLISECONDS);
 
             if (remoteAddress() != null) {
                 OpenConnectionRequest1 request = new OpenConnectionRequest1();
@@ -501,14 +522,15 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                     ByteBuf closeMessage = alloc().ioBuffer(1, 1);
                     switch (connectMode) {
                         case REQUESTED_CONNECTION:
-                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_ATTEMPT_FAILED);
+                            ByteUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_ATTEMPT_FAILED);
                             break;
                         case CONNECTED:
-                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_LOST);
+                            ByteUtil.writeByte(closeMessage, MessageIdentifier.ID_CONNECTION_LOST);
                             break;
                         case DISCONNECT_ASAP:
                         case DISCONNECT_ON_NO_ACK:
-                            PacketUtil.writeByte(closeMessage, MessageIdentifier.ID_DISCONNECTION_NOTIFICATION);
+                            ByteUtil.writeByte(closeMessage, MessageIdentifier.ID_DISCONNECTION_NOTIFICATION);
+                            pipeline().disconnect();
                             break;
                         default:
                             break;

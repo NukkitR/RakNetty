@@ -1,12 +1,12 @@
-package org.nukkit.raknetty.handler.codec.minecraft;
+package org.nukkit.raknetty.handler.codec.bedrock;
 
 import io.netty.buffer.ByteBuf;
 import org.nukkit.raknetty.channel.RakServerChannel;
-import org.nukkit.raknetty.handler.codec.DefaultOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.DefaultOfflinePingResponder;
 
 import java.nio.charset.StandardCharsets;
 
-public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
+public class BedrockOfflinePingResponder extends DefaultOfflinePingResponder {
 
     private final RakServerChannel channel4;
     private final RakServerChannel channel6;
@@ -24,16 +24,16 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
     //private int port4;
     //private int port6;
 
-    public MinecraftOfflinePingResponder(RakServerChannel channel4) {
+    public BedrockOfflinePingResponder(RakServerChannel channel4) {
         this(channel4, null);
     }
 
-    public MinecraftOfflinePingResponder(RakServerChannel channel4, RakServerChannel channel6) {
+    public BedrockOfflinePingResponder(RakServerChannel channel4, RakServerChannel channel6) {
         this.channel4 = channel4;
         this.channel6 = channel6;
     }
 
-    public MinecraftOfflinePingResponder isEducation(boolean isEducation) {
+    public BedrockOfflinePingResponder isEducation(boolean isEducation) {
         this.isEducation = isEducation;
         return this;
     }
@@ -42,7 +42,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return serverName;
     }
 
-    public MinecraftOfflinePingResponder serverName(String name) {
+    public BedrockOfflinePingResponder serverName(String name) {
         this.serverName = name;
         return this;
     }
@@ -51,7 +51,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return protocolVersion;
     }
 
-    public MinecraftOfflinePingResponder protocolVersion(int protocolVersion) {
+    public BedrockOfflinePingResponder protocolVersion(int protocolVersion) {
         this.protocolVersion = protocolVersion;
         return this;
     }
@@ -60,7 +60,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return gameVersion;
     }
 
-    public MinecraftOfflinePingResponder gameVersion(String gameVersion) {
+    public BedrockOfflinePingResponder gameVersion(String gameVersion) {
         this.gameVersion = gameVersion;
         return this;
     }
@@ -69,7 +69,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return playerCount;
     }
 
-    public MinecraftOfflinePingResponder playerCount(int playerCount) {
+    public BedrockOfflinePingResponder playerCount(int playerCount) {
         this.playerCount = playerCount;
         return this;
     }
@@ -86,7 +86,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return levelName;
     }
 
-    public MinecraftOfflinePingResponder levelName(String levelName) {
+    public BedrockOfflinePingResponder levelName(String levelName) {
         this.levelName = levelName;
         return this;
     }
@@ -95,7 +95,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return gamemodeName;
     }
 
-    public MinecraftOfflinePingResponder gamemodeName(String gamemodeName) {
+    public BedrockOfflinePingResponder gamemodeName(String gamemodeName) {
         this.gamemodeName = gamemodeName;
         return this;
     }
@@ -104,7 +104,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return gamemodeId;
     }
 
-    public MinecraftOfflinePingResponder gamemodeId(int gamemodeId) {
+    public BedrockOfflinePingResponder gamemodeId(int gamemodeId) {
         this.gamemodeId = gamemodeId;
         return this;
     }
@@ -119,7 +119,7 @@ public class MinecraftOfflinePingResponder extends DefaultOfflinePingResponder {
         return channel6.localAddress().getPort();
     }
 
-    public MinecraftOfflinePingResponder build() {
+    public BedrockOfflinePingResponder build() {
         buf.clear();
         String prefix = isEducation ? "MCEE" : "MCPE";
 

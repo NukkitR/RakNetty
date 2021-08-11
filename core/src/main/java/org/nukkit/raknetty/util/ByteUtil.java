@@ -8,7 +8,7 @@ import org.nukkit.raknetty.handler.codec.reliability.InternalPacket;
 
 import java.net.*;
 
-public class PacketUtil {
+public class ByteUtil {
 
     public static byte getByte(ByteBuf buf) {
         return buf.getByte(buf.readerIndex());
@@ -59,6 +59,13 @@ public class PacketUtil {
         return new String(dst, CharsetUtil.UTF_8);
     }
 
+    public static String readStringIntLE(ByteBuf buf) {
+        int len = buf.readIntLE();
+        byte[] dst = new byte[len];
+        buf.readBytes(dst);
+        return new String(dst, CharsetUtil.UTF_8);
+    }
+
     public static void writeByte(ByteBuf buf, MessageIdentifier id) {
         buf.writeByte(id.ordinal());
     }
@@ -85,7 +92,7 @@ public class PacketUtil {
 
             //typedef struct sockaddr_in6 {
             //    ADDRESS_FAMILY sin6_family; // AF_INET6.
-            buf.writeShort(10);               // Todo: check if it's 10 (linux/socket.h) or 23 (winsocks2.h)
+            buf.writeShort(10);               // 10 (linux/socket.h) or 23 (winsocks2.h)
             //    USHORT sin6_port;           // Transport level port number.
             buf.writeShort(port);
             //    ULONG  sin6_flowinfo;       // IPv6 flow information.
@@ -100,6 +107,11 @@ public class PacketUtil {
 
     public static void writeString(ByteBuf buf, String str) {
         buf.writeShort(str.length());
+        buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
+    }
+
+    public static void writeStringIntLE(ByteBuf buf, String str) {
+        buf.writeIntLE(str.length());
         buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
     }
 

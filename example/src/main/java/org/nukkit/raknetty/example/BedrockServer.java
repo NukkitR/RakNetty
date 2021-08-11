@@ -11,12 +11,11 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
-import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
-import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
-import org.nukkit.raknetty.handler.codec.minecraft.MinecraftOfflinePingResponder;
+import org.nukkit.raknetty.channel.nio.BedrockChannel;
+import org.nukkit.raknetty.channel.nio.NioBedrockServerChannel;
+import org.nukkit.raknetty.handler.codec.bedrock.BedrockOfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -40,25 +39,22 @@ public class BedrockServer {
         try {
             final ServerBootstrap boot = new ServerBootstrap();
             boot.group(acceptGroup, connectGroup)
-                    .channel(NioRakServerChannel.class)
+                    .channel(NioBedrockServerChannel.class)
                     .option(RakServerChannelOption.RAKNET_GUID, 123456L)
-                    // consist with the bedrock RakNet configuration
-                    .option(RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
-                    .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 20)
-                    .option(RakServerChannelOption.RAKNET_MTU_SIZES, new int[]{1400})
-                    .handler(new LoggingHandler("RakServerLogger", LogLevel.INFO))
-                    .childHandler(new ChannelInitializer<RakChannel>() {
+                    .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 15)
+                    .handler(new LoggingHandler("RakServerLogger", LogLevel.DEBUG))
+                    .childHandler(new ChannelInitializer<BedrockChannel>() {
                         @Override
-                        public void initChannel(final RakChannel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.INFO));
+                        public void initChannel(final BedrockChannel ch) throws Exception {
+                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG));
                         }
                     });
             // Start the server.
-            final ChannelFuture future4 = boot.bind(PORT4).sync();
-            final RakServerChannel channel4 = (NioRakServerChannel) future4.channel();
+            final ChannelFuture future = boot.bind(PORT4).sync();
+            final NioBedrockServerChannel channel = (NioBedrockServerChannel) future.channel();
 
             // Setup the offline responder
-            final OfflinePingResponder responder = new MinecraftOfflinePingResponder(channel4, null)
+            final OfflinePingResponder responder = new BedrockOfflinePingResponder(channel, null)
                     .serverName("Bedrock Server by RakNetty")
                     .protocolVersion(440)
                     .gameVersion("1.17.2")
@@ -67,10 +63,10 @@ public class BedrockServer {
                     .gamemodeName("Survival")
                     .gamemodeId(1)
                     .build();
-            channel4.config().setOfflinePingResponder(responder);
+            channel.config().setOfflinePingResponder(responder);
 
             // Wait until the server socket is closed.
-            channel4.closeFuture().sync();
+            channel.closeFuture().sync();
         } finally {
             // Shut down all event loops to terminate all threads.
             acceptGroup.shutdownGracefully();

@@ -8,7 +8,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.DefaultReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 public class InternalPacket extends DefaultReliabilityMessage implements ByteBufHolder {
 
@@ -119,7 +119,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
 
         // we want to make sure the packet have enough bytes left to read
         // and it should be smaller than the MTU size
-        int bodyLength = PacketUtil.bitToBytes(bitLength);
+        int bodyLength = ByteUtil.bitToBytes(bitLength);
 
         Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
         data = buf.readBytes(bodyLength);

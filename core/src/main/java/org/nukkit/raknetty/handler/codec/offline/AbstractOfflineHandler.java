@@ -10,7 +10,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetSocketAddress;
 
@@ -38,7 +38,7 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
                 ByteBuf buf = packet.content();
                 InetSocketAddress sender = packet.sender();
 
-                MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
+                MessageIdentifier id = ByteUtil.getMessageIdentifier(buf);
                 if (id == null) {
                     // it is not an offline message, proceed to the next handler
                     release = false;

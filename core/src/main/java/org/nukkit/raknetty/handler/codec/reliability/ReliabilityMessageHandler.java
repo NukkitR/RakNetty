@@ -12,7 +12,7 @@ import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -84,7 +84,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
         boolean release = true;
-        MessageIdentifier id = PacketUtil.getMessageIdentifier(buf);
+        MessageIdentifier id = ByteUtil.getMessageIdentifier(buf);
         ConnectMode connectMode = channel.connectMode();
 
         // try to decode

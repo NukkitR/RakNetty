@@ -10,7 +10,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.nukkit.raknetty.channel.RakChannelOption;
-import org.nukkit.raknetty.channel.nio.NioRakChannel;
+import org.nukkit.raknetty.channel.nio.NioBedrockChannel;
 
 public class BedrockClient {
 
@@ -27,12 +27,8 @@ public class BedrockClient {
         try {
             final Bootstrap boot = new Bootstrap();
             boot.group(workGroup)
-                    .channel(NioRakChannel.class)
+                    .channel(NioBedrockChannel.class)
                     .option(RakChannelOption.RAKNET_GUID, 654321L)
-                    // consist with the bedrock RakNet configuration
-                    .option(RakChannelOption.RAKNET_CONNECT_INTERVAL, 500)
-                    .option(RakChannelOption.RAKNET_CONNECT_ATTEMPTS, 12)
-                    .option(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                     .handler(new LoggingHandler("RakLogger", LogLevel.INFO));
             // Start the server.
             final ChannelFuture future = boot.connect("kk.rekonquer.com", 19132).sync();

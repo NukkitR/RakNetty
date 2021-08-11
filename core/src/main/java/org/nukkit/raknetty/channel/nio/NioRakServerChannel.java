@@ -17,7 +17,7 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class NioRakServerChannel extends AbstractRakDatagramChannel implements RakServerChannel {
+public class NioRakServerChannel extends AbstractRakDatagramChannel implements RakServerChannel {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakServerChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
@@ -33,18 +33,20 @@ public final class NioRakServerChannel extends AbstractRakDatagramChannel implem
 
     protected NioRakServerChannel(DatagramChannel udpChannel) {
         super(null, udpChannel);
-        config = new DefaultRakServerChannelConfig(this, udpChannel);
+        config = newConfig();
 
         pipeline().addLast("BanList", banList);
         pipeline().addLast(new DefaultServerOfflineHandler(this));
         pipeline().addLast(new ServerMessageDispatcher());
     }
 
+    protected RakServerChannelConfig newConfig() {
+        return new DefaultRakServerChannelConfig(this, udpChannel());
+    }
+
     @Override
     public void accept(ChannelHandlerContext ctx, OpenConnectionRequest2 request, InetSocketAddress remoteAddress) {
-        RakChannel channel = new NioRakServerConnectorChannel(this)
-                .remoteAddress(remoteAddress)
-                .remoteGuid(request.clientGuid)
+        RakChannel channel = newChildChannel(remoteAddress, request.clientGuid)
                 .mtuSize(request.mtuSize)
                 .connectMode(RakChannel.ConnectMode.UNVERIFIED_SENDER);
 
@@ -59,6 +61,12 @@ public final class NioRakServerChannel extends AbstractRakDatagramChannel implem
                 .count();
 
         return connected < config().getMaximumConnections();
+    }
+
+    protected RakChannel newChildChannel(InetSocketAddress remoteAddress, long guid) {
+        return new NioRakChannel(this)
+                .remoteAddress(remoteAddress)
+                .remoteGuid(guid);
     }
 
     @Override

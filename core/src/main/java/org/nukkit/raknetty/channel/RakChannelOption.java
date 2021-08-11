@@ -1,7 +1,7 @@
 package org.nukkit.raknetty.channel;
 
 import io.netty.channel.ChannelOption;
-import org.nukkit.raknetty.handler.codec.OfflinePingResponder;
+import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 public class RakChannelOption<T> extends ChannelOption<T> {
 

@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetSocketAddress;
 
@@ -17,10 +17,10 @@ public class OpenConnectionReply2 implements OfflineMessage {
 
     @Override
     public void encode(ByteBuf buf) {
-        PacketUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REPLY_2);
+        ByteUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REPLY_2);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
         buf.writeLong(serverGuid);
-        PacketUtil.writeAddress(buf, clientAddress);
+        ByteUtil.writeAddress(buf, clientAddress);
         buf.writeShort(mtuSize);
         buf.writeBoolean(hasSecurity);
     }
@@ -30,7 +30,7 @@ public class OpenConnectionReply2 implements OfflineMessage {
         buf.skipBytes(1);
         buf.skipBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID.length);
         serverGuid = buf.readLong();
-        clientAddress = PacketUtil.readAddress(buf);
+        clientAddress = ByteUtil.readAddress(buf);
         mtuSize = buf.readShort();
         buf.skipBytes(1);                      // TODO: implement security
     }

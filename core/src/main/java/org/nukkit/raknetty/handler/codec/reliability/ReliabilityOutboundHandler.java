@@ -10,11 +10,12 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
+import org.nukkit.raknetty.channel.event.ReceiptAcknowledgeEvent;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
 import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.PacketUtil;
+import org.nukkit.raknetty.util.ByteUtil;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +83,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             UnreliableAckReceipt receipt = unreliableReceipts.get(datagramNumber);
             if (receipt != null) {
                 channel.pipeline().fireUserEventTriggered(
-                        new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_ACKED, receipt.serial));
+                        new ReceiptAcknowledgeEvent(ReceiptAcknowledgeEvent.AcknowledgeState.ACKED, receipt.serial));
                 unreliableReceipts.remove(datagramNumber);
                 return;
             }
@@ -186,7 +187,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
             if (packet.reliability.withAckReceipt() &&
                     (packet.splitPacketCount == 0 || packet.splitPacketIndex + 1 == packet.splitPacketCount)) {
                 channel.pipeline().fireUserEventTriggered(
-                        new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_ACKED, packet.receiptSerial));
+                        new ReceiptAcknowledgeEvent(ReceiptAcknowledgeEvent.AcknowledgeState.ACKED, packet.receiptSerial));
             }
 
             if (packet.reliability.isReliable()) {
@@ -297,7 +298,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         Validate.isTrue(channel.mtuSize() > 0, "mtu size is not defined.");
 
         packet.splitPacketCount = 1; // mark it as split packet by assigning an arbitrary value
-        int headerLength = PacketUtil.getHeaderLength(packet);
+        int headerLength = ByteUtil.getHeaderLength(packet);
         int bodyLength = packet.bodyLength();
         int blockSize = channel.slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
 
@@ -436,7 +437,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             if (currentTime - receipt.actionTime >= 0) {
                 channel.pipeline().fireUserEventTriggered(
-                        new AcknowledgeEvent(AcknowledgeEvent.AcknowledgeState.RECEIPT_LOSS, receipt.serial));
+                        new ReceiptAcknowledgeEvent(ReceiptAcknowledgeEvent.AcknowledgeState.LOSS, receipt.serial));
                 it.remove();
             }
         }
@@ -552,7 +553,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             continue;
                         }
 
-                        packet.headerLength = PacketUtil.getHeaderLength(packet);
+                        packet.headerLength = ByteUtil.getHeaderLength(packet);
                         int packetLength = packet.headerLength + packet.bodyLength();
 
                         if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {
