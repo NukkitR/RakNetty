@@ -39,10 +39,9 @@
                             <keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
                             <shadedArtifactAttached>false</shadedArtifactAttached>
                             <artifactSet>
-                                <excludes>
-                                    <exclude>io.netty:netty-all</exclude>
-                                    <exclude>org.apache.commons:commons-lang3</exclude>
-                                </excludes>
+                                <includes>
+                                    <include>org.nukkit:raknetty-*</include>
+                                </includes>
                             </artifactSet>
                             <filters>
                                 <filter>
