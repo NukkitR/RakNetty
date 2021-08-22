@@ -35,6 +35,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
     private final EncryptionHandler encryptionHandler;
     private final CompressionHandler compressionHandler;
     private final BatchPacketHandler batchHandler;
+    private final NetworkHandler networkHandler;
     private final KeyAgreement keyAgreement;
     private final KeyPair localKeyPair;
     private PublicKey remotePublicKey;
@@ -58,6 +59,12 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
         // also see CompressedNetworkPeer::sendPacket and leveldb::ZlibCompressorBase::compressImpl
         pipeline().addLast("Compression", compressionHandler = new CompressionHandler(ZlibWrapper.NONE, 8));
         pipeline().addLast("Batch", batchHandler = new BatchPacketHandler(this));
+        if (isClient()) {
+            networkHandler = new ClientNetworkHandlerAdapter(this);
+        } else {
+            networkHandler = new ServerNetworkHandlerAdapter(this);
+        }
+        pipeline().addLast("Network", networkHandler);
 
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
@@ -89,7 +96,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
         super.doFinishConnect();
 
         if (isClient()) {
-            batchHandler.doSend(batchHandler.ctx(), loginPacket);
+            batchHandler.write(batchHandler.ctx(), loginPacket, voidPromise());
         }
     }
 
@@ -107,7 +114,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
         String skinJwt = skin.sign(localPublicKey(), localPrivateKey());
 
         LoginPacket login = new LoginPacket();
-        login.protocolVersion = ProtocolUtil.PROTOCOL_NETWORK_VERSION;
+        login.protocolVersion = BedrockPacketUtil.PROTOCOL_NETWORK_VERSION;
         login.tokens = tokens;
         login.skinJwt = skinJwt;
 
@@ -120,7 +127,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
 
     @Override
     public ChannelFuture loginFuture() {
-        return batchHandler.loginFuture();
+        return networkHandler.loginFuture();
     }
 
     @Override
@@ -136,7 +143,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
         if (!isClient() && disconnectReason != null) {
             DisconnectPacket disconnect = new DisconnectPacket();
             disconnect.reason = disconnectReason;
-            batchHandler.doSend(batchHandler.ctx(), disconnect);
+            batchHandler.write(batchHandler.ctx(), disconnect, voidPromise());
         }
 
         super.doDisconnect();

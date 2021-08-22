@@ -6,10 +6,12 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.handler.codec.bedrock.ProtocolUtil;
 import org.nukkit.raknetty.handler.codec.bedrock.WebTokenUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,17 +46,26 @@ public class ServerToClientHandshake extends AbstractBedrockPacket {
                 .signWith(serverPrivateKey, SignatureAlgorithm.ES384)
                 .compact();
 
-        ProtocolUtil.writeString(buf, token);
+        BedrockPacketUtil.writeString(buf, token);
     }
 
     @Override
     public void decode(ByteBuf buf) throws Exception {
-        String token = ProtocolUtil.readString(buf);
+        String token = BedrockPacketUtil.readString(buf);
         Validate.notNull(token, "failed to read web token");
 
         Jws<Claims> jws = WebTokenUtil.parse(token);
         serverPublicKey = WebTokenUtil.readECPublicKey((String) jws.getHeader().get("x5u"));
         String salt = jws.getBody().get("salt", String.class);
         this.salt = Base64.getDecoder().decode(salt);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("serverPrivateKey", serverPrivateKey)
+                .append("serverPublicKey", serverPublicKey)
+                .append("salt", ByteBufUtil.hexDump(salt))
+                .toString();
     }
 }

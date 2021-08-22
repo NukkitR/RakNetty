@@ -2,6 +2,7 @@ package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 
@@ -50,5 +51,10 @@ public class PlayStatusPacket extends AbstractBedrockPacket {
         status = PlayStatus.PLAY_STATUSES[index];
     }
 
-
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("status", status)
+                .toString();
+    }
 }

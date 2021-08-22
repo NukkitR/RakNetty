@@ -6,10 +6,11 @@ import org.nukkit.raknetty.util.VarIntUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ProtocolUtil {
+public class BedrockPacketUtil {
 
     public static final int PROTOCOL_NETWORK_VERSION = 448;
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProtocolUtil.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BedrockPacketUtil.class);
 
     public static byte getByte(ByteBuf buf) {
         return buf.getByte(buf.readerIndex());
@@ -17,14 +18,6 @@ public class ProtocolUtil {
 
     public static int getUnsignedByte(ByteBuf buf) {
         return buf.getUnsignedByte(buf.readerIndex());
-    }
-
-    public static PacketIdentifier getPacketIdentifier(ByteBuf buf) {
-        return PacketIdentifier.valueOf(getUnsignedByte(buf) & 0x3ff);
-    }
-
-    public static void writeByte(ByteBuf buf, PacketIdentifier id) {
-        buf.writeByte(id.ordinal());
     }
 
     public static String readString(ByteBuf buf) {
@@ -44,6 +37,5 @@ public class ProtocolUtil {
         VarIntUtil.writeUnsignedVarInt(buf, str.length());
         buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
     }
-
 
 }

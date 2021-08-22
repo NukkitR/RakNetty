@@ -193,7 +193,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         onConnectedPong(in.requestTime, in.replyTime);
 
-                        LOGGER.debug("CONNECTED: {}", in);
+                        //LOGGER.debug("CONNECTED: {}", in);
 
                         NewIncomingConnection out = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
                         out.serverAddress = channel.remoteAddress();
@@ -202,7 +202,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         fillIpList(out.clientAddresses);
 
-                        LOGGER.debug("SEND: {}", out);
+                        //LOGGER.debug("SEND: {}", out);
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
 

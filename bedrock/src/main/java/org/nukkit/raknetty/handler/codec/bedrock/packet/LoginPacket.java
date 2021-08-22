@@ -2,6 +2,7 @@ package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 import org.nukkit.raknetty.util.ByteUtil;
@@ -47,5 +48,14 @@ public class LoginPacket extends AbstractBedrockPacket {
         ByteBuf slice = buf.readSlice((int) VarIntUtil.readUnsignedVarInt(buf));
         tokens = ByteUtil.readStringIntLE(slice);
         skinJwt = ByteUtil.readStringIntLE(slice);
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("protocolVersion", protocolVersion)
+                .append("tokens", tokens)
+                .append("skinJwt", skinJwt)
+                .toString();
     }
 }

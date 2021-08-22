@@ -1,14 +1,16 @@
 package org.nukkit.raknetty.handler.codec.bedrock;
 
+import org.nukkit.raknetty.handler.codec.bedrock.packet.*;
+
 public enum PacketIdentifier {
     // see also MinecraftPackets::createPacket
 
     RESERVED_0,
-    LOGIN,
-    PLAY_STATUS,
-    SERVER_TO_CLIENT_HANDSHAKE,
-    CLIENT_TO_SERVER_HANDSHAKE,
-    DISCONNECT,
+    LOGIN(LoginPacket.class),
+    PLAY_STATUS(PlayStatusPacket.class),
+    SERVER_TO_CLIENT_HANDSHAKE(ServerToClientHandshake.class),
+    CLIENT_TO_SERVER_HANDSHAKE(ClientToServerHandshake.class),
+    DISCONNECT(DisconnectPacket.class),
     RESOURCE_PACKS_INFO,
     RESOURCE_PACK_STACK,
     RESOURCE_PACK_CLIENT_RESPONSE,
@@ -146,7 +148,7 @@ public enum PacketIdentifier {
     SETTINGS_COMMAND_PACKET,
     ANVIL_DAMAGE,
     COMPLETED_USING_ITEM,
-    NETWORK_SETTINGS,
+    NETWORK_SETTINGS(NetworkSettingsPacket.class),
     PLAYER_AUTH_INPUT,
     CREATIVE_CONTENT,
     PLAYER_ENCHANT_OPTIONS,
@@ -175,12 +177,31 @@ public enum PacketIdentifier {
     NPC_DIALOGUE,
     ;
 
+    private Class<? extends BedrockPacket> clazz = null;
+
+    PacketIdentifier() {
+    }
+
+    PacketIdentifier(Class<? extends BedrockPacket> clazz) {
+        this.clazz = clazz;
+    }
+
+    public BedrockPacket createPacket() {
+        if (clazz != null) {
+            try {
+                return clazz.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to create packet", e);
+            }
+        }
+        return null;
+    }
+
     public static final PacketIdentifier[] PACKET_IDENTIFIERS = PacketIdentifier.values();
     public static final int NUM_OF_IDENTIFIERS = PACKET_IDENTIFIERS.length;
 
     public static PacketIdentifier valueOf(int id) {
         if (id < 0 || id >= NUM_OF_IDENTIFIERS) return null;
-
         return PACKET_IDENTIFIERS[id];
     }
 }
