@@ -66,6 +66,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         }
     }
 
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        this.ctx = ctx;
+    }
+
     public void sendAck(int datagramNumber) {
         ACKs.add(datagramNumber);
         NAKs.remove(datagramNumber); // remove it from the NAK list if previously added
@@ -76,7 +81,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
     }
 
     public void onAck(AcknowledgePacket ack, long timeRead) {
-        //LOGGER.debug("RECV_ACK: " + ack);
+        // LOGGER.debug("RECV_ACK: " + ack);
         ack.indices().forEach(datagramNumber -> {
 
             // remove if the message is sent in an unreliable way
@@ -198,6 +203,11 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
             // release the memory
             ReferenceCountUtil.release(packet);
+        } else {
+            //LOGGER.debug("Unable to remove #{}", messageNumber);
+            if (packet != null) {
+                LOGGER.warn("Reliable message number mismatch, expecting: %d, actual: %d", messageNumber, packet.reliableMessageNumber);
+            }
         }
     }
 
@@ -236,7 +246,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         // congestion control, buffer the packets before sending it out.
 
         long currentTime = System.nanoTime();
-        this.ctx = ctx;
 
         if (msg instanceof InternalPacket) {
             InternalPacket packet = (InternalPacket) msg;
@@ -375,8 +384,6 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
     public void update() {
         long currentTime = System.nanoTime();
-
-        ctx = channel.pipeline().context(this);
         Validate.isTrue(ctx != null);
 
         // update time

@@ -114,7 +114,7 @@ public class NioRakServerChannel extends AbstractRakDatagramChannel implements R
     }
 
     @Override
-    protected void doFinishConnect() throws Exception {
+    protected void doFinishConnect() {
         throw new UnsupportedOperationException();
     }
 
@@ -178,7 +178,9 @@ public class NioRakServerChannel extends AbstractRakDatagramChannel implements R
                 InetSocketAddress address = ((DatagramPacket) msg).sender();
                 RakChannel channel = getChildChannel(address);
                 if (channel != null) {
-                    channel.pipeline().fireChannelRead(msg);
+                    channel.eventLoop().submit(() -> {
+                        channel.pipeline().fireChannelRead(msg);
+                    });
                 }
 
             } else if (msg instanceof Channel) {

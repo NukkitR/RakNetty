@@ -30,7 +30,7 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        boolean release = true;
+        boolean isOffline = true;
 
         try {
             if (msg instanceof DatagramPacket) {
@@ -41,12 +41,11 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
                 MessageIdentifier id = ByteUtil.getMessageIdentifier(buf);
                 if (id == null) {
                     // it is not an offline message, proceed to the next handler
-                    release = false;
-                    ctx.fireChannelRead(msg);
+                    isOffline = false;
                     return;
                 }
 
-                OfflineMessage in = null;
+                OfflineMessage in;
                 switch (id) {
                     case ID_UNCONNECTED_PING:
                         in = new UnconnectedPing();
@@ -85,18 +84,20 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
                         in = new IpRecentlyConnected();
                         break;
                     default:
-                        break;
+                        isOffline = false;
+                        return;
                 }
 
-                if (in != null) {
-                    // an offline message, decode it and process it
-                    in.decode(buf);
-                    readOfflinePacket(ctx, in, sender);
-                }
+                // an offline message, decode it and process it
+                in.decode(buf);
+                readOfflinePacket(ctx, in, sender);
+
             }
         } finally {
-            if (release) {
+            if (isOffline) {
                 ReferenceCountUtil.release(msg);
+            } else {
+                ctx.fireChannelRead(msg);
             }
         }
     }

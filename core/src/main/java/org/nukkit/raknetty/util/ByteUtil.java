@@ -14,8 +14,12 @@ public class ByteUtil {
         return buf.getByte(buf.readerIndex());
     }
 
+    public static int getUnsignedByte(ByteBuf buf) {
+        return buf.getUnsignedByte(buf.readerIndex());
+    }
+
     public static MessageIdentifier getMessageIdentifier(ByteBuf buf) {
-        return MessageIdentifier.valueOf(getByte(buf));
+        return MessageIdentifier.valueOf(getUnsignedByte(buf));
     }
 
     public static InetSocketAddress readAddress(ByteBuf buf) {
@@ -92,7 +96,7 @@ public class ByteUtil {
 
             //typedef struct sockaddr_in6 {
             //    ADDRESS_FAMILY sin6_family; // AF_INET6.
-            buf.writeShort(10);               // 10 (linux/socket.h) or 23 (winsocks2.h)
+            buf.writeShortLE(10);             // 10 (linux/socket.h) or 23 (winsocks2.h)
             //    USHORT sin6_port;           // Transport level port number.
             buf.writeShort(port);
             //    ULONG  sin6_flowinfo;       // IPv6 flow information.
@@ -100,19 +104,21 @@ public class ByteUtil {
             //    IN6_ADDR sin6_addr;         // IPv6 address.
             buf.writeBytes(binary);
             //    ULONG sin6_scope_id;        // Set of interfaces for a scope.
-            buf.writeInt(0);
+            buf.writeInt(((Inet6Address) addr).getScopeId());
             //} SOCKADDR_IN6_LH, *PSOCKADDR_IN6_LH, FAR *LPSOCKADDR_IN6_LH;
         }
     }
 
     public static void writeString(ByteBuf buf, String str) {
-        buf.writeShort(str.length());
-        buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
+        byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
+        buf.writeShort(bytes.length);
+        buf.writeBytes(bytes);
     }
 
     public static void writeStringIntLE(ByteBuf buf, String str) {
-        buf.writeIntLE(str.length());
-        buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
+        byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
+        buf.writeIntLE(bytes.length);
+        buf.writeBytes(bytes);
     }
 
     public static void padWithZero(ByteBuf buf, int bytes) {

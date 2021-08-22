@@ -1,7 +1,9 @@
 package org.nukkit.raknetty.channel.nio;
 
-import org.nukkit.raknetty.channel.BedrockServerChannelConfig;
-import org.nukkit.raknetty.channel.DefaultBedrockServerChannelConfig;
+import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
+import org.nukkit.raknetty.channel.bedrock.BedrockServerChannel;
+import org.nukkit.raknetty.channel.bedrock.BedrockServerChannelConfig;
+import org.nukkit.raknetty.channel.bedrock.DefaultBedrockServerChannelConfig;
 
 import java.net.InetSocketAddress;
 

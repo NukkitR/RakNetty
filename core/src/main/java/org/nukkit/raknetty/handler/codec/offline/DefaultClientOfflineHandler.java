@@ -54,7 +54,7 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
         }
 
         long now = System.nanoTime();
-        LOGGER.debug("READ: {}", msg);
+        //LOGGER.debug("READ: {}", msg);
 
         if (msg instanceof OpenConnectionReply1) {
             OpenConnectionReply1 in = (OpenConnectionReply1) msg;

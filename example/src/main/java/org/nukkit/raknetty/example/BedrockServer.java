@@ -2,6 +2,7 @@ package org.nukkit.raknetty.example;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
@@ -12,7 +13,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
-import org.nukkit.raknetty.channel.nio.BedrockChannel;
+import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
 import org.nukkit.raknetty.channel.nio.NioBedrockServerChannel;
 import org.nukkit.raknetty.handler.codec.bedrock.BedrockOfflinePingResponder;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
@@ -46,7 +47,12 @@ public class BedrockServer {
                     .childHandler(new ChannelInitializer<BedrockChannel>() {
                         @Override
                         public void initChannel(final BedrockChannel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG));
+                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG) {
+                                @Override
+                                public void flush(ChannelHandlerContext ctx) throws Exception {
+                                    super.flush(ctx);
+                                }
+                            });
                         }
                     });
             // Start the server.

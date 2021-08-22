@@ -41,7 +41,7 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
 
     protected abstract boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception;
 
-    protected abstract void doFinishConnect() throws Exception;
+    protected abstract void doFinishConnect();
 
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {

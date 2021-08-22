@@ -1,7 +1,10 @@
-package org.nukkit.raknetty.channel;
+package org.nukkit.raknetty.channel.bedrock;
 
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.util.internal.ObjectUtil;
+import org.nukkit.raknetty.channel.DefaultRakChannelConfig;
+import org.nukkit.raknetty.channel.RakChannelConfig;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.Map;
@@ -10,6 +13,7 @@ import java.util.Map;
 public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements BedrockChannelConfig, RakChannelConfig {
 
     private volatile boolean isOnline = true;
+    private volatile String username = "Steve";
 
     private final RakChannelConfig rakConfig;
 
@@ -17,7 +21,6 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
         super(channel, new FixedRecvByteBufAllocator(2048));
         this.rakConfig = newRakConfig(channel, udpChannel);
     }
-
 
     protected RakChannelConfig newRakConfig(Channel channel, DatagramChannel udpChannel) {
         return new DefaultRakChannelConfig(channel, udpChannel);
@@ -29,7 +32,9 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
 
     @Override
     public Map<ChannelOption<?>, Object> getOptions() {
-        return getOptions(rakConfig().getOptions(), BedrockChannelOption.BEDROCK_IS_ONLINE);
+        return getOptions(rakConfig().getOptions(),
+                BedrockChannelOption.BEDROCK_IS_ONLINE,
+                BedrockChannelOption.BEDROCK_USERNAME);
     }
 
     @SuppressWarnings("unchecked")
@@ -37,6 +42,8 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
     public <T> T getOption(ChannelOption<T> option) {
         if (option == BedrockChannelOption.BEDROCK_IS_ONLINE) {
             return (T) (Boolean) isOnlineAuthenticationEnabled();
+        } else if (option == BedrockChannelOption.BEDROCK_USERNAME) {
+            return (T) getUserName();
         }
         return rakConfig().getOption(option);
     }
@@ -47,6 +54,8 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
 
         if (option == BedrockChannelOption.BEDROCK_IS_ONLINE) {
             setOnlineAuthenticationEnabled((boolean) value);
+        } else if (option == BedrockChannelOption.BEDROCK_USERNAME) {
+            setUserName((String) value);
         } else {
             return rakConfig().setOption(option, value);
         }
@@ -62,6 +71,18 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
     @Override
     public BedrockChannelConfig setOnlineAuthenticationEnabled(boolean isOnline) {
         this.isOnline = isOnline;
+        return this;
+    }
+
+    @Override
+    public String getUserName() {
+        return username;
+    }
+
+    @Override
+    public BedrockChannelConfig setUserName(String username) {
+        ObjectUtil.checkNotNull(username, "userName");
+        this.username = username;
         return this;
     }
 

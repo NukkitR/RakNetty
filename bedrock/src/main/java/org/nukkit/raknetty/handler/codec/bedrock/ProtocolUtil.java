@@ -3,8 +3,29 @@ package org.nukkit.raknetty.handler.codec.bedrock;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
 import org.nukkit.raknetty.util.VarIntUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProtocolUtil {
+
+    public static final int PROTOCOL_NETWORK_VERSION = 448;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProtocolUtil.class);
+
+    public static byte getByte(ByteBuf buf) {
+        return buf.getByte(buf.readerIndex());
+    }
+
+    public static int getUnsignedByte(ByteBuf buf) {
+        return buf.getUnsignedByte(buf.readerIndex());
+    }
+
+    public static PacketIdentifier getPacketIdentifier(ByteBuf buf) {
+        return PacketIdentifier.valueOf(getUnsignedByte(buf) & 0x3ff);
+    }
+
+    public static void writeByte(ByteBuf buf, PacketIdentifier id) {
+        buf.writeByte(id.ordinal());
+    }
 
     public static String readString(ByteBuf buf) {
         buf.markReaderIndex();
@@ -23,4 +44,6 @@ public class ProtocolUtil {
         VarIntUtil.writeUnsignedVarInt(buf, str.length());
         buf.writeBytes(str.getBytes(CharsetUtil.UTF_8));
     }
+
+
 }

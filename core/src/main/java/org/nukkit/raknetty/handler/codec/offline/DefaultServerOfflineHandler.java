@@ -58,7 +58,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 return;
             }
 
-            LOGGER.debug("READ: {}", msg);
+            //LOGGER.debug("READ: {}", msg);
 
             if (msg instanceof OpenConnectionRequest1) {
                 OpenConnectionRequest1 in = (OpenConnectionRequest1) msg;
@@ -67,7 +67,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 // if true, close the connection request.
                 int remoteProtocol = in.protocol;
                 if (remoteProtocol != Message.RAKNET_PROTOCOL_VERSION) {
-                    LOGGER.debug("rejecting connection request from {}: outdated client", sender);
+                    LOGGER.debug("Rejecting connection request from {}: outdated client", sender);
 
                     IncompatibleProtocolVersion out = new IncompatibleProtocolVersion();
                     out.protocol = Message.RAKNET_PROTOCOL_VERSION;
@@ -95,7 +95,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
                 // if the client skipped OpenConnectionRequest1 or the request was timed out
                 if (!isRequestValid(sender)) {
-                    LOGGER.debug("rejecting connection request from {}: expecting OpenConnectionRequest1", sender);
+                    LOGGER.debug("Rejecting connection request from {}: expecting OpenConnectionRequest1", sender);
 
                     reply = new ConnectionAttemptFailed();
                     return;
@@ -107,7 +107,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
                 // if a connection was established from the same ip in the past 100ms
                 if (isRecentlyConnected(sender)) {
-                    LOGGER.debug("rejecting connection request from {}: requested too frequently", sender);
+                    LOGGER.debug("Rejecting connection request from {}: requested too frequently", sender);
                     IpRecentlyConnected out = new IpRecentlyConnected();
                     out.senderGuid = channel().localGuid();
 
@@ -117,7 +117,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
                 // if the server is full
                 if (!channel().allowNewConnections()) {
-                    LOGGER.debug("rejecting connection request from {}: server is full", sender);
+                    LOGGER.debug("Rejecting connection request from {}: server is full", sender);
                     NoFreeIncomingConnection out = new NoFreeIncomingConnection();
                     out.senderGuid = channel().localGuid();
 
@@ -130,7 +130,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 // TODO: maybe we should check guid too, but i decided not to do that for now
                 //boolean guidInUse = serverChannel.isGuidInUse(in.clientGuid);
                 if (conn != null && conn.isActive()) {
-                    LOGGER.debug("rejecting connection request from {}: already connected", sender);
+                    LOGGER.debug("Rejecting connection request from {}: already connected", sender);
                     AlreadyConnected out = new AlreadyConnected();
                     out.senderGuid = channel().localGuid();
                     reply = out;
@@ -138,7 +138,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 }
 
                 // all good, allow connection
-                LOGGER.debug("accepting connection request from {}", sender);
+                LOGGER.debug("Accepting connection request from {}", sender);
                 OpenConnectionReply2 out = new OpenConnectionReply2();
                 out.serverGuid = channel().localGuid();
                 out.clientAddress = sender;

@@ -1,25 +1,21 @@
 package org.nukkit.raknetty.channel.nio;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelMetadata;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.ConnectTimeoutException;
+import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.*;
-import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.handler.codec.offline.DefaultClientOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
 import org.nukkit.raknetty.handler.codec.reliability.*;
-import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -37,7 +33,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioRakChannel.class);
     private static final ChannelMetadata METADATA = new ChannelMetadata(true);
 
-    protected boolean isOpen = true;
+    private boolean isOpen = true;
 
     private final RakChannelConfig config;
     private SlidingWindow slidingWindow;
@@ -55,7 +51,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     private long nextPingTime = 0;
 
-    private final DefaultClientOfflineHandler offlineHandler = new DefaultClientOfflineHandler(this);
     private final ReliabilityInboundHandler reliabilityIn = new ReliabilityInboundHandler(this);
     private final ReliabilityOutboundHandler reliabilityOut = new ReliabilityOutboundHandler(this);
     private final ReliabilityMessageHandler messageHandler = new ReliabilityMessageHandler(this);
@@ -71,6 +66,11 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent, udpChannel);
         config = newConfig();
+
+        if (isClient()) {
+            DefaultClientOfflineHandler offlineHandler = new DefaultClientOfflineHandler(this);
+            pipeline().addLast(DefaultClientOfflineHandler.NAME, offlineHandler);
+        }
 
         pipeline().addLast(ReliabilityInboundHandler.NAME, reliabilityIn);
         pipeline().addLast(ReliabilityOutboundHandler.NAME, reliabilityOut);
@@ -89,13 +89,12 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     public int averagePing() {
         if (!isActive()) return -1;
-
         return messageHandler.averagePing();
     }
 
     @Override
     public boolean isActive() {
-        return isOpen && connectMode == ConnectMode.CONNECTED;
+        return isOpen && (connectMode == ConnectMode.CONNECTED || connectMode == ConnectMode.DISCONNECT_ON_NO_ACK);
     }
 
     @Override
@@ -136,39 +135,54 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         // already connected
         if (isActive()) return true;
 
-        if (pipeline().get(DefaultClientOfflineHandler.NAME) == null) {
-            // first time to connect
-            pipeline().addBefore(
-                    ReliabilityInboundHandler.NAME,
-                    DefaultClientOfflineHandler.NAME,
-                    offlineHandler
-            );
-        }
-
         connectTask = eventLoop().submit(new ConnectionRequestTask());
         return false;
     }
 
     @Override
-    protected void doFinishConnect() throws Exception {
-        // NOOP
+    protected void doFinishConnect() {
+        if (connectPromise != null) {
+            connectPromise.trySuccess();
+        }
+    }
+
+    protected void doFinishConnect(Throwable cause) {
+        if (connectPromise != null) {
+            connectPromise.tryFailure(cause);
+        }
+    }
+
+    @Override
+    public ChannelFuture disconnect() {
+        if (canDisconnect()) {
+            connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
+            return super.disconnect();
+        }
+        return newPromise();
+    }
+
+    @Override
+    public ChannelFuture disconnect(ChannelPromise promise) {
+        if (canDisconnect()) {
+            connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
+            return super.disconnect(promise);
+        }
+        return promise;
+    }
+
+    private boolean canDisconnect() {
+        return isActive() && connectMode != ConnectMode.DISCONNECT_ON_NO_ACK;
     }
 
     @Override
     protected void doDisconnect() throws Exception {
-        if (!isClient()) {
-            throw new UnsupportedOperationException();
-        }
-
-        LOGGER.debug("DISCONNECTING...");
+        // mark as dead connection
+        connectMode(ConnectMode.DISCONNECT_ASAP);
 
         // send notification
         DisconnectionNotification out = new DisconnectionNotification();
         send(out, PacketPriority.LOW_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
         updateImmediately();
-
-        // mark as dead connection
-        connectMode(ConnectMode.DISCONNECT_ASAP);
     }
 
     @Override
@@ -191,7 +205,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     }
 
     public void ping(PacketReliability reliability) {
-        LOGGER.debug("PING");
+        //LOGGER.debug("PING");
         ConnectedPing ping = new ConnectedPing();
         ping.pingTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         send(ping, PacketPriority.IMMEDIATE_PRIORITY, reliability, 0);
@@ -200,20 +214,26 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     public void send(final ReliabilityMessage message, final PacketPriority priority, final PacketReliability reliability, final int orderingChannel) {
         if (!eventLoop().inEventLoop()) {
-            eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
+            eventLoop().execute(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
             // create with a slightly larger capacity to optimise for most split packets
             ByteBuf buf = alloc().ioBuffer(2048);
-            message.encode(buf);
-            send(buf, priority, reliability, orderingChannel);
+            try {
+                message.encode(buf);
+                send(buf, priority, reliability, orderingChannel);
+
+            } catch (Exception e) {
+                ReferenceCountUtil.release(buf);
+                pipeline().fireExceptionCaught(e);
+            }
         }
     }
 
     @Override
     public void send(final ByteBuf message, final PacketPriority priority, final PacketReliability reliability, final int orderingChannel) {
         if (!eventLoop().inEventLoop()) {
-            eventLoop().submit(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
+            eventLoop().execute(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
 
@@ -245,23 +265,12 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
         if (mode == ConnectMode.UNVERIFIED_SENDER || mode == ConnectMode.REQUESTED_CONNECTION) {
             // update time
-            timeConnected = System.nanoTime();
+            if (timeConnected <= 0) timeConnected = System.nanoTime();
         }
 
-        if (!wasActive && isActive()) {
+        if (!wasActive && mode == ConnectMode.CONNECTED) {
             pipeline().fireChannelActive();
-
-            // connection in pending
-            if (connectPromise != null) {
-                connectPromise.trySuccess();
-            }
-
-        } else if (wasActive && !isActive()) {
-            if (!metadata().hasDisconnect()) {
-                // fire channelInactive if the channel does not has disconnection behaviour,
-                // otherwise, the channelInactive will be fired twice when disconnecting.
-                pipeline().fireChannelInactive();
-            }
+            doFinishConnect();
         }
         return this;
     }
@@ -328,7 +337,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     public ChannelMetadata metadata() {
-        return isClient() ? METADATA : parent().metadata();
+        return METADATA;
     }
 
     @Override
@@ -394,16 +403,17 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                             connectPromise = null;
 
                             if (future.isSuccess()) {
-                                doFinishConnect();
                                 LOGGER.debug("CONNECT: SUCCESS");
                             } else {
                                 // connection is not successful
-                                close(voidPromise());
+                                if (isOpen()) {
+                                    close(voidPromise());
+                                }
 
                                 if (future.isCancelled()) {
                                     LOGGER.debug("CONNECT: CANCELLED");
                                 } else {
-                                    LOGGER.debug("CONNECT: FAILED, {}", future.cause());
+                                    LOGGER.debug("CONNECT: FAILED");
                                 }
                             }
                         }
@@ -519,6 +529,8 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 }
 
                 if (closeConnection) {
+                    // TODO: replace with disconnect event
+                    /*
                     ByteBuf closeMessage = alloc().ioBuffer(1, 1);
                     switch (connectMode) {
                         case REQUESTED_CONNECTION:
@@ -530,15 +542,15 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                         case DISCONNECT_ASAP:
                         case DISCONNECT_ON_NO_ACK:
                             ByteUtil.writeByte(closeMessage, MessageIdentifier.ID_DISCONNECTION_NOTIFICATION);
-                            pipeline().disconnect();
                             break;
                         default:
+                            ReferenceCountUtil.release(closeMessage);
                             break;
                     }
 
-                    if (closeMessage != null) {
+                    if (closeMessage.isReadable()) {
                         pipeline().context(messageHandler).fireChannelRead(closeMessage);
-                    }
+                    }*/
 
                     if (isOpen()) {
                         close();
@@ -551,7 +563,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 reliabilityOut.update();
 
                 // ping if it is time to do so
-                //TODO: occasional ping?
                 if (connectMode == ConnectMode.CONNECTED
                         && currentTime - nextPingTime > 0
                         && messageHandler.lowestPing() == MAX_PING) {

@@ -113,7 +113,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         in.decode(buf);
                         channel.connectMode(ConnectMode.HANDLING_CONNECTION_REQUEST);
 
-                        LOGGER.debug("CONNECTING: {}", in);
+                        //LOGGER.debug("CONNECTING: {}", in);
 
                         ConnectionRequestAccepted out = new ConnectionRequestAccepted(channel.config().getMaximumNumberOfInternalIds());
                         out.clientAddress = channel.remoteAddress();
@@ -121,7 +121,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
                         fillIpList(out.ipList);
 
-                        LOGGER.debug("SEND: {}", out);
+                        //LOGGER.debug("SEND: {}", out);
 
                         channel.send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
                     }
@@ -151,7 +151,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                     onConnectedPong(in.pingTime, in.pongTime);
 
-                    LOGGER.debug("PONG_RECV: {} ms", averagePing());
+                    LOGGER.debug("Average ping: {} ms", averagePing());
                     break;
                 }
                 case ID_CONNECTED_PING: {
@@ -170,9 +170,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                     break;
                 }
                 case ID_DISCONNECTION_NOTIFICATION: {
-                    LOGGER.debug("CLOSE: ID_DISCONNECTION_NOTIFICATION");
+                    LOGGER.debug("ID_DISCONNECTION_NOTIFICATION");
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
-                    channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
+                    channel.disconnect();
                     break;
                 }
                 // case ID_DETECT_LOST_CONNECTIONS:
@@ -195,12 +195,11 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         LOGGER.debug("CONNECTED: {}", in);
 
-                        channel.connectMode(ConnectMode.CONNECTED);
-
                         NewIncomingConnection out = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
                         out.serverAddress = channel.remoteAddress();
                         out.pingTime = in.replyTime;
                         out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+
                         fillIpList(out.clientAddresses);
 
                         LOGGER.debug("SEND: {}", out);
@@ -210,6 +209,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         if (!hasConnected) {
                             channel.ping(PacketReliability.UNRELIABLE);
                         }
+
+                        // set channel state to CONNECTED
+                        channel.connectMode(ConnectMode.CONNECTED);
                     }
                     break;
                 }
@@ -248,9 +250,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
         try {
             List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
             int index = 0;
-
             for (NetworkInterface netIf : interfaces) {
-                if (netIf.isLoopback()) continue;
+                // comment out the following as it's time-consuming
+                //if (netIf.isLoopback()) continue;
                 List<InetAddress> addresses = Collections.list(netIf.getInetAddresses());
 
                 for (InetAddress address : addresses) {

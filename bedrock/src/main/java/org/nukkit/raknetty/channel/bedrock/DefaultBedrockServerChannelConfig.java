@@ -1,8 +1,10 @@
-package org.nukkit.raknetty.channel;
+package org.nukkit.raknetty.channel.bedrock;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.DatagramChannel;
+import org.nukkit.raknetty.channel.DefaultRakServerChannelConfig;
+import org.nukkit.raknetty.channel.RakServerChannelConfig;
 
 import java.util.Map;
 

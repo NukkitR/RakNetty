@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.channel.nio;
+package org.nukkit.raknetty.channel.bedrock;
 
 import org.nukkit.raknetty.channel.RakServerChannel;
 

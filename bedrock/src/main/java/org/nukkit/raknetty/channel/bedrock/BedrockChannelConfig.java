@@ -1,5 +1,6 @@
-package org.nukkit.raknetty.channel;
+package org.nukkit.raknetty.channel.bedrock;
 
+import org.nukkit.raknetty.channel.RakChannelConfig;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 public interface BedrockChannelConfig extends RakChannelConfig {
@@ -7,6 +8,10 @@ public interface BedrockChannelConfig extends RakChannelConfig {
     boolean isOnlineAuthenticationEnabled();
 
     BedrockChannelConfig setOnlineAuthenticationEnabled(boolean isOnline);
+
+    String getUserName();
+
+    BedrockChannelConfig setUserName(String username);
 
     @Override
     BedrockChannelConfig setLocalGuid(long guid);

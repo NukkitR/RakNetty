@@ -10,7 +10,7 @@ public interface Message {
 
     int MESSAGE_HEADER_MAX_SIZE = 1 + 2 + 3 + 3 + 3 + 1 + 4 + 2 + 4;
 
-    void encode(ByteBuf buf);
+    void encode(ByteBuf buf) throws Exception;
 
-    void decode(ByteBuf buf);
+    void decode(ByteBuf buf) throws Exception;
 }
