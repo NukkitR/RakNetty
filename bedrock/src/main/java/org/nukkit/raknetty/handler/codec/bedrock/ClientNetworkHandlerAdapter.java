@@ -7,7 +7,7 @@ import org.nukkit.raknetty.handler.codec.bedrock.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter implements ClientNetworkHandler {
+public class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter implements ClientNetworkHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientNetworkHandlerAdapter.class);
 
@@ -82,6 +82,6 @@ public final class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter imp
 
     @Override
     public void handle(ChannelHandlerContext ctx, NetworkSettingsPacket in) throws Exception {
-        LOGGER.debug("Network settings: {}", in);
+        LOGGER.debug("{}", in);
     }
 }

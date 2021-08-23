@@ -56,7 +56,7 @@ public class BedrockClient {
             LOGGER.info("RakNetty client is disconnected.");
 
             // Wait until the client socket is closed.
-            future.channel().closeFuture().sync();
+            channel.closeFuture().sync();
             LOGGER.info("RakNetty client is closed.");
 
         } finally {

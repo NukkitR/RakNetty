@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.handler.codec;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public final class DatagramHeader implements Cloneable {
@@ -14,6 +15,7 @@ public final class DatagramHeader implements Cloneable {
     }
 
     public static DatagramHeader getHeader(Type type) {
+        Validate.notNull(type);
         switch (type) {
             case NAK:
                 return new DatagramHeader(0xA0);
@@ -22,7 +24,7 @@ public final class DatagramHeader implements Cloneable {
             case DATA:
                 return new DatagramHeader(0x80);
             default:
-                return null;
+                throw new IllegalStateException("Should not reach here");
         }
     }
 

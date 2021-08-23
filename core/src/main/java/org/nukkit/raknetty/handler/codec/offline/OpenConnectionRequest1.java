@@ -5,7 +5,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.ByteUtil;
+import org.nukkit.raknetty.util.BinaryUtil;
 
 public class OpenConnectionRequest1 implements OfflineMessage {
 
@@ -13,17 +13,20 @@ public class OpenConnectionRequest1 implements OfflineMessage {
     public int mtuSize;
 
     @Override
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_OPEN_CONNECTION_REQUEST_1;
+    }
+
+    @Override
     public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_OPEN_CONNECTION_REQUEST_1);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
         buf.writeByte(protocol);
-        ByteUtil.padWithZero(buf, mtuSize - Message.UDP_HEADER_SIZE);
+        BinaryUtil.padWithZero(buf, mtuSize - Message.UDP_HEADER_SIZE);
     }
 
     @Override
     public void decode(ByteBuf buf) {
-        mtuSize = buf.readableBytes() + Message.UDP_HEADER_SIZE;
-        buf.skipBytes(1);
+        mtuSize = buf.readableBytes() + 1 + Message.UDP_HEADER_SIZE;
         buf.skipBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID.length);
         protocol = buf.readByte();
     }

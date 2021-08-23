@@ -7,7 +7,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
-import org.nukkit.raknetty.channel.AddressedMessage;
+import org.nukkit.raknetty.channel.AddressedOfflineMessage;
 import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.offline.ConnectionBanned;
 
@@ -41,7 +41,7 @@ public class BannedIpFilter extends ChannelInboundHandlerAdapter {
 
                     ConnectionBanned out = new ConnectionBanned();
                     out.senderGuid = channel.localGuid();
-                    ctx.writeAndFlush(new AddressedMessage(out, sender));
+                    ctx.writeAndFlush(new AddressedOfflineMessage(out, sender));
                     return;
                 }
 

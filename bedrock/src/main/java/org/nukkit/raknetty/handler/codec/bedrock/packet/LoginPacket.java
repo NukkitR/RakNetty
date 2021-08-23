@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.util.ByteUtil;
 import org.nukkit.raknetty.util.VarIntUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,8 +46,8 @@ public class LoginPacket extends AbstractBedrockPacket {
     public void decode(ByteBuf buf) {
         protocolVersion = buf.readInt();
         ByteBuf slice = buf.readSlice((int) VarIntUtil.readUnsignedVarInt(buf));
-        tokens = ByteUtil.readStringIntLE(slice);
-        skinJwt = ByteUtil.readStringIntLE(slice);
+        tokens = BedrockPacketUtil.readString(slice, slice::readIntLE);
+        skinJwt = BedrockPacketUtil.readString(slice, slice::readIntLE);
     }
 
     @Override

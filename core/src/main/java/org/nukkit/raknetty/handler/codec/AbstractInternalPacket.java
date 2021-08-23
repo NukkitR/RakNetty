@@ -1,6 +1,8 @@
 package org.nukkit.raknetty.handler.codec;
 
-public abstract class DefaultReliabilityMessage implements ReliabilityMessage, Cloneable {
+import io.netty.buffer.ByteBuf;
+
+public abstract class AbstractInternalPacket implements Cloneable {
 
     public PacketReliability reliability;
     public PacketPriority priority;
@@ -16,9 +18,13 @@ public abstract class DefaultReliabilityMessage implements ReliabilityMessage, C
 
     public abstract int bodyLength();
 
+    public abstract void encode(ByteBuf buf) throws Exception;
+
+    public abstract void decode(ByteBuf buf) throws Exception;
+
     @Override
-    protected DefaultReliabilityMessage clone() throws CloneNotSupportedException {
-        DefaultReliabilityMessage msg = (DefaultReliabilityMessage) super.clone();
+    protected AbstractInternalPacket clone() throws CloneNotSupportedException {
+        AbstractInternalPacket msg = (AbstractInternalPacket) super.clone();
         msg.creationTime = System.nanoTime();
         msg.header = header.clone();
         return msg;

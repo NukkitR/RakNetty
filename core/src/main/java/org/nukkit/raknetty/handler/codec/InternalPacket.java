@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.handler.codec.reliability;
+package org.nukkit.raknetty.handler.codec;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
@@ -6,11 +6,9 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.DefaultByteBufHolder;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.DefaultReliabilityMessage;
-import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.ByteUtil;
+import org.nukkit.raknetty.util.BinaryUtil;
 
-public class InternalPacket extends DefaultReliabilityMessage implements ByteBufHolder {
+public class InternalPacket extends AbstractInternalPacket implements ByteBufHolder {
 
     public static final int NUMBER_OF_ORDERED_STREAMS = 32;
 
@@ -119,7 +117,7 @@ public class InternalPacket extends DefaultReliabilityMessage implements ByteBuf
 
         // we want to make sure the packet have enough bytes left to read
         // and it should be smaller than the MTU size
-        int bodyLength = ByteUtil.bitToBytes(bitLength);
+        int bodyLength = BinaryUtil.bitToBytes(bitLength);
 
         Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
         data = buf.readBytes(bodyLength);

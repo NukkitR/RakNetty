@@ -1,19 +1,12 @@
 package org.nukkit.raknetty.handler.codec.offline;
 
-import io.netty.buffer.ByteBuf;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
-import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.ByteUtil;
+import org.nukkit.raknetty.handler.codec.OfflineMessageAdapter;
 
-public class ConnectionLost implements OfflineMessage {
-
-    @Override
-    public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_LOST);
-    }
+public class ConnectionLost extends OfflineMessageAdapter {
 
     @Override
-    public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_CONNECTION_LOST;
     }
 }

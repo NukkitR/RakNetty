@@ -3,7 +3,7 @@ package org.nukkit.raknetty.handler.codec.offline;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.AddressedMessage;
+import org.nukkit.raknetty.channel.AddressedOfflineMessage;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.handler.codec.Message;
@@ -39,7 +39,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
     @Override
     public void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage msg, InetSocketAddress sender) {
-        Message reply = null;
+        OfflineMessage reply = null;
         long now = System.nanoTime();
 
         try {
@@ -152,7 +152,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
         } finally {
             if (reply != null) {
-                ctx.writeAndFlush(new AddressedMessage(reply, sender));
+                ctx.writeAndFlush(new AddressedOfflineMessage(reply, sender));
             }
         }
     }

@@ -1,25 +1,23 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.ByteUtil;
 
 public class DisconnectionNotification implements ReliabilityMessage {
 
     @Override
-    public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_DISCONNECTION_NOTIFICATION);
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_DISCONNECTION_NOTIFICATION;
     }
 
     @Override
-    public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
+    public void decode(ByteBuf buf) throws Exception {
+
     }
 
     @Override
-    public String toString() {
-        return new ToStringBuilder(this).toString();
+    public void encode(ByteBuf buf) throws Exception {
+
     }
 }

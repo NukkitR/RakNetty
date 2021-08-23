@@ -11,17 +11,14 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.event.ReceiptAcknowledgeEvent;
-import org.nukkit.raknetty.handler.codec.DatagramHeader;
-import org.nukkit.raknetty.handler.codec.Message;
-import org.nukkit.raknetty.handler.codec.PacketPriority;
-import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.ByteUtil;
+import org.nukkit.raknetty.handler.codec.*;
+import org.nukkit.raknetty.util.BinaryUtil;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.nukkit.raknetty.handler.codec.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 import static org.nukkit.raknetty.handler.codec.Message.UDP_HEADER_SIZE;
-import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 
 public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
 
@@ -307,7 +304,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
         Validate.isTrue(channel.mtuSize() > 0, "mtu size is not defined.");
 
         packet.splitPacketCount = 1; // mark it as split packet by assigning an arbitrary value
-        int headerLength = ByteUtil.getHeaderLength(packet);
+        int headerLength = BinaryUtil.getHeaderLength(packet);
         int bodyLength = packet.bodyLength();
         int blockSize = channel.slidingWindow().getMtuExcludingMessageHeader() - Message.MESSAGE_HEADER_MAX_SIZE;
 
@@ -560,7 +557,7 @@ public class ReliabilityOutboundHandler extends ChannelOutboundHandlerAdapter {
                             continue;
                         }
 
-                        packet.headerLength = ByteUtil.getHeaderLength(packet);
+                        packet.headerLength = BinaryUtil.getHeaderLength(packet);
                         int packetLength = packet.headerLength + packet.bodyLength();
 
                         if (datagramSizes + packetLength > channel.slidingWindow().getMtuExcludingMessageHeader()) {

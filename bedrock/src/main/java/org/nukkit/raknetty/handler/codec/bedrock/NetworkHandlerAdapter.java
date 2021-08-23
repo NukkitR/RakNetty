@@ -41,8 +41,8 @@ public class NetworkHandlerAdapter extends ChannelInboundHandlerAdapter implemen
         BedrockPacket packet = packetId.createPacket();
 
         if (packet == null) {
-            packet = new BedrockPacketAdapter();
-            ((BedrockPacketAdapter) packet).id = packetId;
+            packet = new BedrockPacketHolder();
+            ((BedrockPacketHolder) packet).id = packetId;
         }
         packet.decode(buf);
 

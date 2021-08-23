@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBufHolder;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.DefaultByteBufHolder;
 
-final class BedrockPacketAdapter extends AbstractBedrockPacket implements ByteBufHolder {
+final class BedrockPacketHolder extends AbstractBedrockPacket implements ByteBufHolder {
 
     public PacketIdentifier id = null;
     public ByteBuf data;

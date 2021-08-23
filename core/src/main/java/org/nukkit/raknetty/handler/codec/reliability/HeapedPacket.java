@@ -1,5 +1,7 @@
 package org.nukkit.raknetty.handler.codec.reliability;
 
+import org.nukkit.raknetty.handler.codec.InternalPacket;
+
 public class HeapedPacket implements Comparable<HeapedPacket> {
 
     int weight;

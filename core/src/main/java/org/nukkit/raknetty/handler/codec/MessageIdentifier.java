@@ -1,5 +1,7 @@
 package org.nukkit.raknetty.handler.codec;
 
+import io.netty.buffer.ByteBuf;
+
 public enum MessageIdentifier {
 
     //
@@ -382,13 +384,19 @@ public enum MessageIdentifier {
     ID_USER_PACKET_ENUM;
     //-------------------------------------------------------------------------------------------------------------
 
+    public void writeTo(ByteBuf buf) {
+        buf.writeByte(ordinal());
+    }
 
     public static final MessageIdentifier[] MESSAGE_IDENTIFIERS = MessageIdentifier.values();
     public static final int NUM_OF_IDENTIFIERS = MESSAGE_IDENTIFIERS.length;
 
+    public static MessageIdentifier readFrom(ByteBuf buf) {
+        return valueOf(buf.readUnsignedByte());
+    }
+
     public static MessageIdentifier valueOf(int id) {
         if (id < 0 || id >= NUM_OF_IDENTIFIERS) return null;
-
         return MESSAGE_IDENTIFIERS[id];
     }
 }

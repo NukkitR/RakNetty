@@ -12,7 +12,6 @@ import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.util.ByteUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -84,7 +83,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
         boolean release = true;
-        MessageIdentifier id = ByteUtil.getMessageIdentifier(buf);
+
+        buf.markReaderIndex();
+        MessageIdentifier id = MessageIdentifier.readFrom(buf);
         ConnectMode connectMode = channel.connectMode();
 
         // try to decode
@@ -103,7 +104,8 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
             // if we cannot look up for a valid id, then it might be a custom packet, better pass it to the user
             if (id == null) {
-                id = MessageIdentifier.ID_USER_PACKET_ENUM;
+                release = false;
+                return;
             }
 
             switch (id) {
@@ -218,7 +220,6 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                 default: {
                     // give the rest to the user
                     release = false;
-                    ctx.fireChannelRead(msg);
                 }
             }
         } catch (Exception e) {
@@ -227,6 +228,9 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
         } finally {
             if (release) {
                 ReferenceCountUtil.release(msg);
+            } else {
+                buf.resetReaderIndex();
+                ctx.fireChannelRead(buf);
             }
         }
     }

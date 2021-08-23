@@ -2,13 +2,15 @@ package org.nukkit.raknetty.util;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
+import org.nukkit.raknetty.handler.codec.InternalPacket;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.handler.codec.reliability.InternalPacket;
 
 import java.net.*;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-public class ByteUtil {
+public class BinaryUtil {
 
     public static byte getByte(ByteBuf buf) {
         return buf.getByte(buf.readerIndex());
@@ -16,10 +18,6 @@ public class ByteUtil {
 
     public static int getUnsignedByte(ByteBuf buf) {
         return buf.getUnsignedByte(buf.readerIndex());
-    }
-
-    public static MessageIdentifier getMessageIdentifier(ByteBuf buf) {
-        return MessageIdentifier.valueOf(getUnsignedByte(buf));
     }
 
     public static InetSocketAddress readAddress(ByteBuf buf) {
@@ -57,14 +55,11 @@ public class ByteUtil {
     }
 
     public static String readString(ByteBuf buf) {
-        int len = buf.readShort();
-        byte[] dst = new byte[len];
-        buf.readBytes(dst);
-        return new String(dst, CharsetUtil.UTF_8);
+        return readString(buf, buf::readShort);
     }
 
-    public static String readStringIntLE(ByteBuf buf) {
-        int len = buf.readIntLE();
+    public static String readString(ByteBuf buf, Supplier<Number> lengthSupplier) {
+        int len = lengthSupplier.get().intValue();
         byte[] dst = new byte[len];
         buf.readBytes(dst);
         return new String(dst, CharsetUtil.UTF_8);
@@ -110,14 +105,12 @@ public class ByteUtil {
     }
 
     public static void writeString(ByteBuf buf, String str) {
-        byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
-        buf.writeShort(bytes.length);
-        buf.writeBytes(bytes);
+        writeString(buf, str, buf::writeShort);
     }
 
-    public static void writeStringIntLE(ByteBuf buf, String str) {
+    public static void writeString(ByteBuf buf, String str, Consumer<Integer> lengthConsumer) {
         byte[] bytes = str.getBytes(CharsetUtil.UTF_8);
-        buf.writeIntLE(bytes.length);
+        lengthConsumer.accept(bytes.length);
         buf.writeBytes(bytes);
     }
 

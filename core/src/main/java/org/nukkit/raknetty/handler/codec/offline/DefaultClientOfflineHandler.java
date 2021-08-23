@@ -4,7 +4,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.nukkit.raknetty.channel.AddressedMessage;
+import org.nukkit.raknetty.channel.AddressedOfflineMessage;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
@@ -64,7 +64,7 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
             out.mtuSize = in.mtuSize;
             out.clientGuid = channel().localGuid();
 
-            ctx.writeAndFlush(new AddressedMessage(out, sender));
+            ctx.writeAndFlush(new AddressedOfflineMessage(out, sender));
             return;
         }
 

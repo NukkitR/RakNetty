@@ -10,13 +10,14 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.handler.codec.DatagramHeader;
+import org.nukkit.raknetty.handler.codec.InternalPacket;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
+import static org.nukkit.raknetty.handler.codec.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 
 public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
 

@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
-import org.nukkit.raknetty.util.ByteUtil;
 
 public class UnconnectedPing implements OfflineMessage {
 
@@ -12,8 +11,12 @@ public class UnconnectedPing implements OfflineMessage {
     public long senderGuid;
 
     @Override
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_UNCONNECTED_PING;
+    }
+
+    @Override
     public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_UNCONNECTED_PING);
         buf.writeLong(sendPingTime);
         buf.writeBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID);
         buf.writeLong(senderGuid);
@@ -21,7 +24,6 @@ public class UnconnectedPing implements OfflineMessage {
 
     @Override
     public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
         sendPingTime = buf.readLong();
         buf.skipBytes(OfflineMessage.OFFLINE_MESSAGE_DATA_ID.length);
         senderGuid = buf.readLong();

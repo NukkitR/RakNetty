@@ -10,6 +10,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.*;
+import org.nukkit.raknetty.handler.codec.InternalPacket;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
@@ -24,8 +25,8 @@ import java.nio.channels.ConnectionPendingException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.nukkit.raknetty.handler.codec.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 import static org.nukkit.raknetty.handler.codec.Message.RAKNET_PROTOCOL_VERSION;
-import static org.nukkit.raknetty.handler.codec.reliability.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
 import static org.nukkit.raknetty.handler.codec.reliability.ReliabilityMessageHandler.MAX_PING;
 
 public class NioRakChannel extends AbstractRakDatagramChannel implements RakChannel {
@@ -220,6 +221,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             // create with a slightly larger capacity to optimise for most split packets
             ByteBuf buf = alloc().ioBuffer(2048);
             try {
+                message.getId().writeTo(buf);
                 message.encode(buf);
                 send(buf, priority, reliability, orderingChannel);
 
@@ -236,7 +238,6 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
             eventLoop().execute(() -> NioRakChannel.this.send(message, priority, reliability, orderingChannel));
 
         } else {
-
             InternalPacket packet = new InternalPacket();
             packet.data = message;
 
@@ -471,7 +472,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                 request.protocol = RAKNET_PROTOCOL_VERSION;
                 request.mtuSize = mtuSizes[mtuIndex];
 
-                udpChannel().writeAndFlush(new AddressedMessage(request, remoteAddress()));
+                udpChannel().writeAndFlush(new AddressedOfflineMessage(request, remoteAddress()));
             }
         }
     }

@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.ByteUtil;
 
 public class ConnectedPong implements ReliabilityMessage {
 
@@ -12,15 +11,18 @@ public class ConnectedPong implements ReliabilityMessage {
     public long pongTime;
 
     @Override
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_CONNECTED_PONG;
+    }
+
+    @Override
     public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_CONNECTED_PONG);
         buf.writeLong(pingTime);
         buf.writeLong(pongTime);
     }
 
     @Override
     public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
         pingTime = buf.readLong();
         pongTime = buf.readLong();
     }

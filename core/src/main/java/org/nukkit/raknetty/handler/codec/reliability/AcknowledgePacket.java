@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.nukkit.raknetty.handler.codec.InternalPacket;
 
 import java.util.*;
 

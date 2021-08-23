@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.ByteUtil;
 
 public class ConnectionRequest implements ReliabilityMessage {
 
@@ -12,8 +11,12 @@ public class ConnectionRequest implements ReliabilityMessage {
     public long requestTime;
 
     @Override
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_CONNECTION_REQUEST;
+    }
+
+    @Override
     public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_CONNECTION_REQUEST);
         buf.writeLong(clientGuid);
         buf.writeLong(requestTime);
         buf.writeBoolean(false); //TODO: security
@@ -21,7 +24,6 @@ public class ConnectionRequest implements ReliabilityMessage {
 
     @Override
     public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
         clientGuid = buf.readLong();
         requestTime = buf.readLong();
     }

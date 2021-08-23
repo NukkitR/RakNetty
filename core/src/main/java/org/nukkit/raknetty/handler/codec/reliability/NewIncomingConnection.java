@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.ByteUtil;
+import org.nukkit.raknetty.util.BinaryUtil;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -22,11 +22,15 @@ public class NewIncomingConnection implements ReliabilityMessage {
     }
 
     @Override
+    public MessageIdentifier getId() {
+        return MessageIdentifier.ID_NEW_INCOMING_CONNECTION;
+    }
+
+    @Override
     public void encode(ByteBuf buf) {
-        ByteUtil.writeByte(buf, MessageIdentifier.ID_NEW_INCOMING_CONNECTION);
-        ByteUtil.writeAddress(buf, serverAddress);
+        BinaryUtil.writeAddress(buf, serverAddress);
         for (int i = 0; i < clientAddresses.length; i++) {
-            ByteUtil.writeAddress(buf, clientAddresses[i]);
+            BinaryUtil.writeAddress(buf, clientAddresses[i]);
         }
         buf.writeLong(pingTime);
         buf.writeLong(pongTime);
@@ -34,10 +38,9 @@ public class NewIncomingConnection implements ReliabilityMessage {
 
     @Override
     public void decode(ByteBuf buf) {
-        buf.skipBytes(1);
-        serverAddress = ByteUtil.readAddress(buf);
+        serverAddress = BinaryUtil.readAddress(buf);
         for (int i = 0; i < clientAddresses.length; i++) {
-            clientAddresses[i] = ByteUtil.readAddress(buf);
+            clientAddresses[i] = BinaryUtil.readAddress(buf);
         }
         pingTime = buf.readLong();
         pongTime = buf.readLong();

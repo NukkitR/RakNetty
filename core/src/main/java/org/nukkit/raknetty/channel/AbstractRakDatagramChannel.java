@@ -8,6 +8,7 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.nukkit.raknetty.handler.codec.OfflineMessage;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -124,11 +125,14 @@ public abstract class AbstractRakDatagramChannel extends AbstractChannel {
 
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof AddressedMessage) {
-                AddressedMessage message = (AddressedMessage) msg;
+            if (msg instanceof AddressedOfflineMessage) {
+                AddressedOfflineMessage message = (AddressedOfflineMessage) msg;
+                OfflineMessage content = message.content();
 
                 ByteBuf buf = alloc().ioBuffer();
-                message.content().encode(buf);
+                content.getId().writeTo(buf);
+                content.encode(buf);
+
                 msg = new DatagramPacket(buf, message.recipient(), message.sender());
             }
 

@@ -16,7 +16,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.util.concurrent.ThreadLocalRandom;
 
-public final class ServerNetworkHandlerAdapter extends NetworkHandlerAdapter implements ServerNetworkHandler {
+public class ServerNetworkHandlerAdapter extends NetworkHandlerAdapter implements ServerNetworkHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerNetworkHandlerAdapter.class);
 
