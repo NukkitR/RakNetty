@@ -1,16 +1,12 @@
 package org.nukkit.raknetty.handler.codec.bedrock;
 
-import io.netty.buffer.ByteBuf;
+import org.nukkit.raknetty.handler.codec.ByteBufSerializable;
 
-public interface BedrockPacket {
+public interface BedrockPacket extends ByteBufSerializable {
 
     PacketIdentifier getId();
 
     int getClientId();
 
     int getSenderId();
-
-    void encode(ByteBuf buf) throws Exception;
-
-    void decode(ByteBuf buf) throws Exception;
 }

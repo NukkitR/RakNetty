@@ -7,7 +7,8 @@ import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
 import org.nukkit.raknetty.util.BinaryUtil;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ConnectionRequestAccepted implements ReliabilityMessage {
 
@@ -16,11 +17,6 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
     public InetSocketAddress[] ipList;
     public long requestTime;
     public long replyTime;
-
-    public ConnectionRequestAccepted(int numberOfInternalIds) {
-        ipList = new InetSocketAddress[numberOfInternalIds];
-        Arrays.fill(ipList, new InetSocketAddress(0));
-    }
 
     @Override
     public MessageIdentifier getId() {
@@ -42,10 +38,11 @@ public class ConnectionRequestAccepted implements ReliabilityMessage {
     public void decode(ByteBuf buf) {
         clientAddress = BinaryUtil.readAddress(buf);
         systemIndex = buf.readShort();
-        for (int i = 0; i < ipList.length; i++) {
-            if (buf.readableBytes() <= 16) break;
-            ipList[i] = BinaryUtil.readAddress(buf);
-        }
+        List<InetSocketAddress> list = new ArrayList<>();
+        do {
+            list.add(BinaryUtil.readAddress(buf));
+        } while (buf.readableBytes() > 16);
+        ipList = list.toArray(new InetSocketAddress[0]);
         requestTime = buf.readLong();
         replyTime = buf.readLong();
     }

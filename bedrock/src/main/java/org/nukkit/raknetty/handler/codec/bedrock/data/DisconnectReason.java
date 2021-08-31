@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.handler.codec.bedrock;
+package org.nukkit.raknetty.handler.codec.bedrock.data;
 
 import java.util.Arrays;
 import java.util.Map;

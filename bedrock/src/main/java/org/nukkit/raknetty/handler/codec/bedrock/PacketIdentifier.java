@@ -6,16 +6,26 @@ public enum PacketIdentifier {
     // see also MinecraftPackets::createPacket
 
     RESERVED_0,
-    LOGIN(LoginPacket.class),
-    PLAY_STATUS(PlayStatusPacket.class),
-    SERVER_TO_CLIENT_HANDSHAKE(ServerToClientHandshake.class),
-    CLIENT_TO_SERVER_HANDSHAKE(ClientToServerHandshake.class),
-    DISCONNECT(DisconnectPacket.class),
-    RESOURCE_PACKS_INFO,
-    RESOURCE_PACK_STACK,
-    RESOURCE_PACK_CLIENT_RESPONSE,
+    LOGIN(
+            LoginPacket.class),
+    PLAY_STATUS(
+            PlayStatusPacket.class),
+    SERVER_TO_CLIENT_HANDSHAKE(
+            ServerToClientHandshake.class),
+    CLIENT_TO_SERVER_HANDSHAKE(
+            ClientToServerHandshake.class),
+    DISCONNECT(
+            DisconnectPacket.class),
+    RESOURCE_PACKS_INFO(
+            ResourcePacksInfoPacket.class),
+    RESOURCE_PACKS_STACK(
+            ResourcePacksStackPacket.class
+    ),
+    RESOURCE_PACK_CLIENT_RESPONSE(
+            ResourcePackClientResponsePacket.class),
     TEXT,
-    SET_TIME,
+    SET_TIME(
+            SetTimePacket.class),
     START_GAME,
     ADD_PLAYER,
     ADD_ACTOR,
@@ -55,7 +65,8 @@ public enum PacketIdentifier {
     CONTAINER_CLOSE,
     PLAYER_HOTBAR,
     INVENTORY_CONTENT,
-    INVENTORY_SLOT,
+    INVENTORY_SLOT(
+            InventorySlotPacket.class),
     CONTAINER_SET_DATA,
     CRAFTING_DATA,
     CRAFTING_EVENT,
@@ -68,8 +79,10 @@ public enum PacketIdentifier {
     SET_DIFFICULTY,
     CHANGE_DIMENSION,
     SET_PLAYER_GAME_TYPE,
-    PLAYER_LIST,
-    SIMPLE_EVENT,
+    PLAYER_LIST(
+            PlayerListPacket.class),
+    SIMPLE_EVENT(
+            SimpleEventPacket.class),
     TELEMETRY_EVENT,
     SPAWN_EXPERIENCE_ORB,
     CLIENTBOUND_MAP_ITEM_DATA,
@@ -87,7 +100,7 @@ public enum PacketIdentifier {
     COMMAND_OUTPUT,
     UPDATE_TRADE,
     UPDATE_EQUIPMENT,
-    RESOURCE_PACK_DATA_INFO,
+    RESOURCE_PACK_DATA_INFO(ResourcePackDataInfoPacket.class),
     RESOURCE_PACK_CHUNK_DATA,
     RESOURCE_PACK_CHUNK_REQUEST,
     TRANSFER,
@@ -134,7 +147,7 @@ public enum PacketIdentifier {
     RESERVED_126,
     ADD_ENTITY,
     REMOVE_ENTITY,
-    CLIENT_CACHE_STATUS,
+    CLIENT_CACHE_STATUS(ClientCacheStatusPacket.class),
     ON_SCREEN_TEXTURE_ANIMATION,
     MAP_CREATE_LOCKED_COPY,
     STRUCTURE_TEMPLATE_DATA_EXPORT_REQUEST,
@@ -148,7 +161,8 @@ public enum PacketIdentifier {
     SETTINGS_COMMAND_PACKET,
     ANVIL_DAMAGE,
     COMPLETED_USING_ITEM,
-    NETWORK_SETTINGS(NetworkSettingsPacket.class),
+    NETWORK_SETTINGS(
+            NetworkSettingsPacket.class),
     PLAYER_AUTH_INPUT,
     CREATIVE_CONTENT,
     PLAYER_ENCHANT_OPTIONS,

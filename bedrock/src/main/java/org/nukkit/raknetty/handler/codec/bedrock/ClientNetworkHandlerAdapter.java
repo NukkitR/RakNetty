@@ -3,9 +3,15 @@ package org.nukkit.raknetty.handler.codec.bedrock;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
+import org.nukkit.raknetty.handler.codec.bedrock.data.PackInfoData;
+import org.nukkit.raknetty.handler.codec.bedrock.data.PlayStatus;
+import org.nukkit.raknetty.handler.codec.bedrock.data.ResourcePackClientStatus;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 public class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter implements ClientNetworkHandler {
 
@@ -14,34 +20,22 @@ public class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter implement
     public ClientNetworkHandlerAdapter(BedrockChannel channel) {
         super(channel);
         Validate.isTrue(channel.isClient());
-    }
 
-    @Override
-    public void dispatch(ChannelHandlerContext ctx, BedrockPacket in) throws Exception {
-        if (in instanceof PlayStatusPacket) {
-            handle(ctx, (PlayStatusPacket) in);
-
-        } else if (in instanceof ServerToClientHandshake) {
-            handle(ctx, (ServerToClientHandshake) in);
-
-        } else if (in instanceof DisconnectPacket) {
-            handle(ctx, (DisconnectPacket) in);
-
-        } else if (in instanceof NetworkSettingsPacket) {
-            handle(ctx, (NetworkSettingsPacket) in);
-
-        } else {
-            super.dispatch(ctx, in);
-        }
+        registerPacketEvent(PlayStatusPacket.class, this::handle);
+        registerPacketEvent(ServerToClientHandshake.class, this::handle);
+        registerPacketEvent(DisconnectPacket.class, this::handle);
+        registerPacketEvent(ResourcePacksInfoPacket.class, this::handle);
+        registerPacketEvent(ResourcePacksStackPacket.class, this::handle);
+        registerPacketEvent(ResourcePackDataInfoPacket.class, this::handle);
+        registerPacketEvent(NetworkSettingsPacket.class, this::handle);
     }
 
     @Override
     public void handle(ChannelHandlerContext ctx, PlayStatusPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+        PlayStatus status = in.status;
 
-        PlayStatusPacket.PlayStatus status = in.status;
-        LOGGER.debug("Play status: {}", status);
-
-        if (status == PlayStatusPacket.PlayStatus.LOGIN_SUCCESS && loginStatus == LoginStatus.HANDSHAKING) {
+        if (status == PlayStatus.LOGIN_SUCCESS && loginStatus == LoginStatus.HANDSHAKING) {
             loginStatus = LoginStatus.SUCCESS;
             loginFuture.markAsSuccess();
 
@@ -81,7 +75,58 @@ public class ClientNetworkHandlerAdapter extends NetworkHandlerAdapter implement
     }
 
     @Override
+    public void handle(ChannelHandlerContext ctx, ResourcePacksInfoPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+
+        ClientCacheStatusPacket status = new ClientCacheStatusPacket();
+        status.isEnabled = true;
+        ctx.write(status);
+
+        ResourcePackClientResponsePacket out = new ResourcePackClientResponsePacket();
+        out.status = ResourcePackClientStatus.DOWNLOAD_FINISHED;
+        out.packIdVersions = new ArrayList<>();
+        out.packIdVersions.addAll(
+                in.behaviorPacksInfo.stream()
+                        .map(PackInfoData.Behavior::toIdVersion)
+                        .collect(Collectors.toList()));
+        out.packIdVersions.addAll(
+                in.resourcePacksInfo.stream()
+                        .map(PackInfoData.Resource::toIdVersion)
+                        .collect(Collectors.toList()));
+
+        ctx.write(out);
+    }
+
+    @Override
+    public void handle(ChannelHandlerContext ctx, ResourcePacksStackPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+
+        ResourcePackClientResponsePacket out = new ResourcePackClientResponsePacket();
+        out.status = ResourcePackClientStatus.READY;
+        out.packIdVersions = new ArrayList<>();
+        out.packIdVersions.addAll(in.behaviorPacksInfo);
+        out.packIdVersions.addAll(in.resourcePacksInfo);
+
+        ctx.write(out);
+    }
+
+    @Override
+    public void handle(ChannelHandlerContext ctx, ResourcePackDataInfoPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+    }
+
+    @Override
     public void handle(ChannelHandlerContext ctx, NetworkSettingsPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+    }
+
+    @Override
+    public void handle(ChannelHandlerContext ctx, PlayerListPacket in) throws Exception {
+        LOGGER.debug("{}", in);
+    }
+
+    @Override
+    public void handle(ChannelHandlerContext ctx, SetTimePacket in) throws Exception {
         LOGGER.debug("{}", in);
     }
 }

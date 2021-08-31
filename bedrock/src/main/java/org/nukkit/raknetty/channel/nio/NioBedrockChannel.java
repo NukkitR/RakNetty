@@ -11,6 +11,8 @@ import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannelConfig;
 import org.nukkit.raknetty.channel.bedrock.DefaultBedrockChannelConfig;
 import org.nukkit.raknetty.handler.codec.bedrock.*;
+import org.nukkit.raknetty.handler.codec.bedrock.data.DisconnectReason;
+import org.nukkit.raknetty.handler.codec.bedrock.data.SkinData;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.DisconnectPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.LoginPacket;
 import org.slf4j.Logger;
@@ -27,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public final class NioBedrockChannel extends NioRakChannel implements BedrockChannel {
+public class NioBedrockChannel extends NioRakChannel implements BedrockChannel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NioBedrockChannel.class);
 
@@ -40,8 +42,6 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
     private final KeyPair localKeyPair;
     private PublicKey remotePublicKey;
     private LoginPacket loginPacket;
-
-    private DisconnectReason disconnectReason = null;
 
     public NioBedrockChannel() {
         this(null);
@@ -85,7 +85,7 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
             if (config().isOnlineAuthenticationEnabled()) {
                 loginPacket = newOnlineLoginPacket();
             } else {
-                loginPacket = newOfflineLoginPacket();
+                loginPacket = newOfflineLoginPacket(remoteAddress);
             }
         }
         return super.doConnect(remoteAddress, localAddress);
@@ -100,17 +100,16 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
         }
     }
 
-    protected LoginPacket newOfflineLoginPacket() {
+    protected LoginPacket newOfflineLoginPacket(SocketAddress remoteAddress) {
         Map<String, Object> extraData = new HashMap<>();
-        extraData.put("XUID", config().getLocalGuid());
         extraData.put("identity", UUID.randomUUID().toString());
         extraData.put("displayName", config().getUserName());
-
         String tokens = WebTokenUtil.createSelfSigned(
                 extraData, localPublicKey(), localPrivateKey());
 
-        SkinData skin = new SkinData();
+        SkinData skin = config().getSkinData();
         skin.thirdPartyName = config().getUserName();
+        skin.serverAddress = remoteAddress.toString();
         String skinJwt = skin.sign(localPublicKey(), localPrivateKey());
 
         LoginPacket login = new LoginPacket();
@@ -132,21 +131,14 @@ public final class NioBedrockChannel extends NioRakChannel implements BedrockCha
 
     @Override
     public ChannelFuture disconnect(DisconnectReason reason) {
-        Validate.notNull(reason, "disconnect reason must not be null");
-        disconnectReason = reason;
-        return disconnect();
-    }
-
-    @Override
-    protected void doDisconnect() throws Exception {
         // server send DisconnectPacket to client to show a screen of message
-        if (!isClient() && disconnectReason != null) {
+        if (reason != null && loginFuture().isSuccess()) {
             DisconnectPacket disconnect = new DisconnectPacket();
-            disconnect.reason = disconnectReason;
+            disconnect.reason = reason;
             batchHandler.write(batchHandler.ctx(), disconnect, voidPromise());
         }
 
-        super.doDisconnect();
+        return super.disconnect();
     }
 
     @Override

@@ -1,8 +1,6 @@
 package org.nukkit.raknetty.handler.codec;
 
-import io.netty.buffer.ByteBuf;
-
-public abstract class AbstractInternalPacket implements Cloneable {
+public abstract class AbstractInternalPacket implements Cloneable, ByteBufSerializable {
 
     public PacketReliability reliability;
     public PacketPriority priority;
@@ -17,10 +15,6 @@ public abstract class AbstractInternalPacket implements Cloneable {
     public long creationTime = System.nanoTime();
 
     public abstract int bodyLength();
-
-    public abstract void encode(ByteBuf buf) throws Exception;
-
-    public abstract void decode(ByteBuf buf) throws Exception;
 
     @Override
     protected AbstractInternalPacket clone() throws CloneNotSupportedException {

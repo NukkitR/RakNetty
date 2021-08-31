@@ -5,6 +5,7 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
 import org.nukkit.raknetty.channel.DefaultRakChannelConfig;
 import org.nukkit.raknetty.channel.RakChannelConfig;
+import org.nukkit.raknetty.handler.codec.bedrock.data.SkinData;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.Map;
@@ -14,6 +15,7 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
 
     private volatile boolean isOnline = true;
     private volatile String username = "Steve";
+    private volatile SkinData skinData = SkinData.generate();
 
     private final RakChannelConfig rakConfig;
 
@@ -34,7 +36,8 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
     public Map<ChannelOption<?>, Object> getOptions() {
         return getOptions(rakConfig().getOptions(),
                 BedrockChannelOption.BEDROCK_IS_ONLINE,
-                BedrockChannelOption.BEDROCK_USERNAME);
+                BedrockChannelOption.BEDROCK_USERNAME,
+                BedrockChannelOption.BEDROCK_SKIN_DATA);
     }
 
     @SuppressWarnings("unchecked")
@@ -44,6 +47,8 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
             return (T) (Boolean) isOnlineAuthenticationEnabled();
         } else if (option == BedrockChannelOption.BEDROCK_USERNAME) {
             return (T) getUserName();
+        } else if (option == BedrockChannelOption.BEDROCK_SKIN_DATA) {
+            return (T) getSkinData();
         }
         return rakConfig().getOption(option);
     }
@@ -56,6 +61,8 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
             setOnlineAuthenticationEnabled((boolean) value);
         } else if (option == BedrockChannelOption.BEDROCK_USERNAME) {
             setUserName((String) value);
+        } else if (option == BedrockChannelOption.BEDROCK_SKIN_DATA) {
+            setSkinData((SkinData) value);
         } else {
             return rakConfig().setOption(option, value);
         }
@@ -83,6 +90,17 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
     public BedrockChannelConfig setUserName(String username) {
         ObjectUtil.checkNotNull(username, "userName");
         this.username = username;
+        return this;
+    }
+
+    @Override
+    public SkinData getSkinData() {
+        return skinData;
+    }
+
+    @Override
+    public BedrockChannelConfig setSkinData(SkinData skinData) {
+        this.skinData = skinData;
         return this;
     }
 

@@ -5,10 +5,10 @@ import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
-import org.nukkit.raknetty.handler.codec.bedrock.DisconnectReason;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
+import org.nukkit.raknetty.handler.codec.bedrock.data.DisconnectReason;
 
-public class DisconnectPacket extends AbstractBedrockPacket {
+public class DisconnectPacket extends AbstractBedrockPacket implements ServerBedrockPacket {
 
     public boolean noDisconnectionScreen = false;
     public DisconnectReason reason = DisconnectReason.DISCONNECTED;

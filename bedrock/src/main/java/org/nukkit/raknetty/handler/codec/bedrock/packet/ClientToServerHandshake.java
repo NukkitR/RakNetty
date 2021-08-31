@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 
-public class ClientToServerHandshake extends AbstractBedrockPacket {
+public class ClientToServerHandshake extends AbstractBedrockPacket implements ClientBedrockPacket {
 
     @Override
     public PacketIdentifier getId() {

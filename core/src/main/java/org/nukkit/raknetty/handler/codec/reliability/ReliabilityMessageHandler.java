@@ -6,7 +6,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannel.ConnectMode;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
@@ -34,6 +33,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
     private final int[] pingTime = new int[PING_TIMES_ARRAY_SIZE];
     private final long[] clockDiff = new long[PING_TIMES_ARRAY_SIZE];
     private int pingArrayIndex = 0;
+    private InetSocketAddress[] ipList;
 
     public ReliabilityMessageHandler(RakChannel channel) {
         this.channel = channel;
@@ -117,11 +117,11 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                         //LOGGER.debug("CONNECTING: {}", in);
 
-                        ConnectionRequestAccepted out = new ConnectionRequestAccepted(channel.config().getMaximumNumberOfInternalIds());
+                        ConnectionRequestAccepted out = new ConnectionRequestAccepted();
                         out.clientAddress = channel.remoteAddress();
                         out.requestTime = in.requestTime;
                         out.replyTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-                        fillIpList(out.ipList);
+                        out.ipList = ipList;
 
                         //LOGGER.debug("SEND: {}", out);
 
@@ -138,7 +138,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         // ping the remote peer
                         channel.ping(PacketReliability.UNRELIABLE);
 
-                        NewIncomingConnection in = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
+                        NewIncomingConnection in = new NewIncomingConnection();
                         in.decode(buf);
 
                         LOGGER.debug("CONNECTED: {}", in);
@@ -174,7 +174,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                 case ID_DISCONNECTION_NOTIFICATION: {
                     LOGGER.debug("ID_DISCONNECTION_NOTIFICATION");
                     // do not close the channel immediately as we need to ack the ID_DISCONNECTION_NOTIFICATION
-                    channel.disconnect();
+                    channel.connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
                     break;
                 }
                 // case ID_DETECT_LOST_CONNECTIONS:
@@ -190,19 +190,18 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                     if (canConnect) {
 
-                        ConnectionRequestAccepted in = new ConnectionRequestAccepted(channel.config().getMaximumNumberOfInternalIds());
+                        ConnectionRequestAccepted in = new ConnectionRequestAccepted();
                         in.decode(buf);
 
                         onConnectedPong(in.requestTime, in.replyTime);
 
                         //LOGGER.debug("CONNECTED: {}", in);
 
-                        NewIncomingConnection out = new NewIncomingConnection(channel.config().getMaximumNumberOfInternalIds());
+                        NewIncomingConnection out = new NewIncomingConnection();
                         out.serverAddress = channel.remoteAddress();
                         out.pingTime = in.replyTime;
                         out.pongTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-
-                        fillIpList(out.clientAddresses);
+                        out.clientAddresses = ipList;
 
                         //LOGGER.debug("SEND: {}", out);
 
@@ -247,15 +246,16 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
         pingArrayIndex = (pingArrayIndex + 1) % PING_TIMES_ARRAY_SIZE;
     }
 
-    private void fillIpList(InetSocketAddress[] ipList) {
-        Validate.notNull(ipList);
-        if (ipList[0].getPort() != 0) return; // ip list has already been filled
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        ipList = new InetSocketAddress[channel.config().getMaximumNumberOfInternalIds()];
+        Arrays.fill(ipList, new InetSocketAddress(0));
 
         try {
             List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
             int index = 0;
             for (NetworkInterface netIf : interfaces) {
-                // comment out the following as it's time-consuming
+                // comment out the following due to poor performance
                 //if (netIf.isLoopback()) continue;
                 List<InetAddress> addresses = Collections.list(netIf.getInetAddresses());
 
@@ -268,5 +268,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
             }
         } catch (Exception ignored) {
         }
+
+        super.channelRegistered(ctx);
     }
 }

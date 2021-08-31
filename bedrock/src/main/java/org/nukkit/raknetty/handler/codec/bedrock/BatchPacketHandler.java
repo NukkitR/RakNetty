@@ -80,6 +80,8 @@ public class BatchPacketHandler extends ChannelDuplexHandler {
     }
 
     private void doWrite(ChannelHandlerContext ctx, Collection<BedrockPacket> packets) {
+        if (packets.isEmpty()) return;
+
         CompositeByteBuf out = ctx.alloc().compositeBuffer();
 
         for (BedrockPacket packet : packets) {
@@ -92,8 +94,10 @@ public class BatchPacketHandler extends ChannelDuplexHandler {
                 VarIntUtil.writeUnsignedVarInt(header, body.readableBytes());
                 out.addComponents(true, header, body);
 
+                //LOGGER.debug("Write packet: {}, \n{}", packet, ByteBufUtil.prettyHexDump(body));
+
             } catch (Exception e) {
-                LOGGER.debug("Skipping one packet: {}", packet, e);
+                LOGGER.debug("Failed to write packet: {}", packet, e);
             }
         }
 
@@ -110,6 +114,8 @@ public class BatchPacketHandler extends ChannelDuplexHandler {
         } finally {
             if (channel.isActive()) {
                 updateTask = channel.eventLoop().schedule(this::update, 1000 / 20, TimeUnit.MILLISECONDS);
+            } else {
+                updateTask = null;
             }
         }
     }

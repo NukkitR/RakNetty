@@ -95,7 +95,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     public boolean isActive() {
-        return isOpen && (connectMode == ConnectMode.CONNECTED || connectMode == ConnectMode.DISCONNECT_ON_NO_ACK);
+        return isOpen && connectMode.isConnected();
     }
 
     @Override
@@ -155,35 +155,28 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
     @Override
     public ChannelFuture disconnect() {
-        if (canDisconnect()) {
-            connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
-            return super.disconnect();
-        }
-        return newPromise();
+        return disconnect(newPromise());
     }
 
     @Override
     public ChannelFuture disconnect(ChannelPromise promise) {
-        if (canDisconnect()) {
-            connectMode(ConnectMode.DISCONNECT_ON_NO_ACK);
+        if (isOpen() && connectMode.canDisconnect()) {
+
+            // send notification
+            DisconnectionNotification out = new DisconnectionNotification();
+            send(out, PacketPriority.LOW_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
+            updateImmediately();
+
+            // wait until the disconnect notification is acknowledged
+            connectMode(ConnectMode.DISCONNECT_ASAP);
             return super.disconnect(promise);
         }
         return promise;
     }
 
-    private boolean canDisconnect() {
-        return isActive() && connectMode != ConnectMode.DISCONNECT_ON_NO_ACK;
-    }
-
     @Override
     protected void doDisconnect() throws Exception {
-        // mark as dead connection
-        connectMode(ConnectMode.DISCONNECT_ASAP);
-
-        // send notification
-        DisconnectionNotification out = new DisconnectionNotification();
-        send(out, PacketPriority.LOW_PRIORITY, PacketReliability.RELIABLE_ORDERED, 0);
-        updateImmediately();
+        // NOOP
     }
 
     @Override

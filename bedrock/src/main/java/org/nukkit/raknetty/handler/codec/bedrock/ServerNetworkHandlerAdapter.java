@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jws;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
+import org.nukkit.raknetty.handler.codec.bedrock.data.PlayStatus;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.ClientToServerHandshake;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.LoginPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.PlayStatusPacket;
@@ -23,19 +24,9 @@ public class ServerNetworkHandlerAdapter extends NetworkHandlerAdapter implement
     public ServerNetworkHandlerAdapter(BedrockChannel channel) {
         super(channel);
         Validate.isTrue(!channel.isClient());
-    }
 
-    @Override
-    public void dispatch(ChannelHandlerContext ctx, BedrockPacket in) throws Exception {
-        if (in instanceof LoginPacket) {
-            handle(ctx, (LoginPacket) in);
-
-        } else if (in instanceof ClientToServerHandshake) {
-            handle(ctx, (ClientToServerHandshake) in);
-
-        } else {
-            super.dispatch(ctx, in);
-        }
+        registerPacketEvent(LoginPacket.class, this::handle);
+        registerPacketEvent(ClientToServerHandshake.class, this::handle);
     }
 
     @Override
@@ -85,7 +76,7 @@ public class ServerNetworkHandlerAdapter extends NetworkHandlerAdapter implement
         LOGGER.debug("C->S Handshake");
 
         PlayStatusPacket out = new PlayStatusPacket();
-        out.status = PlayStatusPacket.PlayStatus.LOGIN_SUCCESS;
+        out.status = PlayStatus.LOGIN_SUCCESS;
         ctx.write(out);
     }
 }

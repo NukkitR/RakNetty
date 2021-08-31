@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
-public class LoginPacket extends AbstractBedrockPacket {
+public class LoginPacket extends AbstractBedrockPacket implements ClientBedrockPacket {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginPacket.class);
 

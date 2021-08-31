@@ -1,9 +1,7 @@
 package org.nukkit.raknetty.example;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -37,7 +35,13 @@ public class BedrockClient {
                     .handler(new ChannelInitializer<Channel>() {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.INFO));
+                            ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.INFO) {
+                                @Override
+                                public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+                                    //LOGGER.debug(new RuntimeException());
+                                    super.close(ctx, promise);
+                                }
+                            });
                         }
                     });
 
@@ -48,10 +52,10 @@ public class BedrockClient {
             // Wait for the client to log in
             BedrockChannel channel = (BedrockChannel) future.channel();
             channel.loginFuture().sync();
-            LOGGER.info("RakNetty client is online.");
+            LOGGER.info("RakNetty client is logged in.");
 
             // Disconnect the client from the server after a few seconds
-            Thread.sleep(10 * 1000);
+            Thread.sleep(20 * 1000);
             channel.disconnect().sync();
             LOGGER.info("RakNetty client is disconnected.");
 

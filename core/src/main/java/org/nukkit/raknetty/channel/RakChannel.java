@@ -54,14 +54,38 @@ public interface RakChannel extends Channel {
     DatagramChannel udpChannel();
 
     enum ConnectMode {
-        NO_ACTION,
-        DISCONNECT_ASAP,
-        DISCONNECT_ASAP_SILENTLY,
-        DISCONNECT_ON_NO_ACK,
-        REQUESTED_CONNECTION,
-        HANDLING_CONNECTION_REQUEST,
-        UNVERIFIED_SENDER,
-        CONNECTED
+        NO_ACTION(
+                false, false),
+        DISCONNECT_ASAP(
+                true, false),
+        DISCONNECT_ASAP_SILENTLY(
+                true, false),
+        DISCONNECT_ON_NO_ACK(
+                true, false),
+        REQUESTED_CONNECTION(
+                false, true),
+        HANDLING_CONNECTION_REQUEST(
+                false, true),
+        UNVERIFIED_SENDER(
+                false, true),
+        CONNECTED(
+                true, true);
+
+        private final boolean isConnected;
+        private final boolean canDisconnect;
+
+        ConnectMode(boolean isConnected, boolean canDisconnect) {
+            this.isConnected = isConnected;
+            this.canDisconnect = canDisconnect;
+        }
+
+        public boolean isConnected() {
+            return isConnected;
+        }
+
+        public boolean canDisconnect() {
+            return canDisconnect;
+        }
     }
 
 }

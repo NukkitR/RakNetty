@@ -20,7 +20,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.util.Base64;
 
-public class ServerToClientHandshake extends AbstractBedrockPacket {
+public class ServerToClientHandshake extends AbstractBedrockPacket implements ServerBedrockPacket {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerToClientHandshake.class);
 

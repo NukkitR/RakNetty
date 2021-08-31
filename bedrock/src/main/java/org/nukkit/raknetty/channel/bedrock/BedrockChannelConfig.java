@@ -1,6 +1,7 @@
 package org.nukkit.raknetty.channel.bedrock;
 
 import org.nukkit.raknetty.channel.RakChannelConfig;
+import org.nukkit.raknetty.handler.codec.bedrock.data.SkinData;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 public interface BedrockChannelConfig extends RakChannelConfig {
@@ -12,6 +13,10 @@ public interface BedrockChannelConfig extends RakChannelConfig {
     String getUserName();
 
     BedrockChannelConfig setUserName(String username);
+
+    SkinData getSkinData();
+
+    BedrockChannelConfig setSkinData(SkinData skinData);
 
     @Override
     BedrockChannelConfig setLocalGuid(long guid);
