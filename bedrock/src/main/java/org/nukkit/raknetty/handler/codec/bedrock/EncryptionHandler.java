@@ -69,7 +69,7 @@ public final class EncryptionHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
-        byte packetId = BedrockPacketUtil.getByte(buf);
+        byte packetId = buf.getByte(buf.readerIndex());
 
         boolean release = true;
 

@@ -1,10 +1,9 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 
-public class SimpleEventPacket extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class SimpleEventPacket implements ServerBedrockPacket {
 
     public int eventType;
 
@@ -14,12 +13,12 @@ public class SimpleEventPacket extends AbstractBedrockPacket implements ServerBe
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
+    public void decode(BedrockByteBuf buf) throws Exception {
         eventType = buf.readUnsignedShortLE();
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
+    public void encode(BedrockByteBuf buf) throws Exception {
         buf.writeShortLE(eventType);
     }
 }

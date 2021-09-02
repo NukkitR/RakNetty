@@ -206,8 +206,7 @@ public class ReliabilityInboundHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
 
-
-            LOGGER.debug("READ: Split packet #{} ready, size={}", packet.splitPacketId, packet.data.writerIndex());
+            //LOGGER.debug("READ: Split packet #{} ready, size={}", packet.splitPacketId, packet.data.writerIndex());
 
             // send ACKs immediately, because for large files this can take a long time
             out.doSendAck();

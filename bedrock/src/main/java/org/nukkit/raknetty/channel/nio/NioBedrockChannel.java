@@ -6,15 +6,15 @@ import io.netty.handler.codec.compression.ZlibWrapper;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.Validate;
+import org.nukkit.api.SharedConstants;
 import org.nukkit.raknetty.channel.RakServerChannel;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannelConfig;
 import org.nukkit.raknetty.channel.bedrock.DefaultBedrockChannelConfig;
 import org.nukkit.raknetty.handler.codec.bedrock.*;
-import org.nukkit.raknetty.handler.codec.bedrock.data.DisconnectReason;
-import org.nukkit.raknetty.handler.codec.bedrock.data.SkinData;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.DisconnectPacket;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.LoginPacket;
+import org.nukkit.raknetty.handler.codec.bedrock.serialization.SerializedSkin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,13 +107,13 @@ public class NioBedrockChannel extends NioRakChannel implements BedrockChannel {
         String tokens = WebTokenUtil.createSelfSigned(
                 extraData, localPublicKey(), localPrivateKey());
 
-        SkinData skin = config().getSkinData();
+        SerializedSkin skin = config().getSkinData();
         skin.thirdPartyName = config().getUserName();
         skin.serverAddress = remoteAddress.toString();
         String skinJwt = skin.sign(localPublicKey(), localPrivateKey());
 
         LoginPacket login = new LoginPacket();
-        login.protocolVersion = BedrockPacketUtil.PROTOCOL_NETWORK_VERSION;
+        login.protocolVersion = SharedConstants.NETWORK_PROTOCOL_VERSION;
         login.tokens = tokens;
         login.skinJwt = skinJwt;
 

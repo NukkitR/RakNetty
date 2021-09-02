@@ -1,31 +1,29 @@
 package org.nukkit.raknetty.handler.codec.bedrock;
 
+import org.nukkit.raknetty.channel.bedrock.LoginStatus;
 import org.nukkit.raknetty.handler.codec.bedrock.packet.*;
+
+import java.util.function.Supplier;
+
+import static org.nukkit.raknetty.channel.bedrock.LoginStatus.PLAY;
 
 public enum PacketIdentifier {
     // see also MinecraftPackets::createPacket
 
-    RESERVED_0,
-    LOGIN(
-            LoginPacket.class),
-    PLAY_STATUS(
-            PlayStatusPacket.class),
-    SERVER_TO_CLIENT_HANDSHAKE(
-            ServerToClientHandshake.class),
-    CLIENT_TO_SERVER_HANDSHAKE(
-            ClientToServerHandshake.class),
-    DISCONNECT(
-            DisconnectPacket.class),
-    RESOURCE_PACKS_INFO(
-            ResourcePacksInfoPacket.class),
-    RESOURCE_PACKS_STACK(
-            ResourcePacksStackPacket.class
-    ),
-    RESOURCE_PACK_CLIENT_RESPONSE(
-            ResourcePackClientResponsePacket.class),
+    // Login and Handshaking packets
+    RESERVED_0(null),
+    LOGIN(LoginStatus.LOGIN, LoginPacket.class, LoginPacket::new),
+    PLAY_STATUS(LoginStatus.HANDSHAKING, PlayStatusPacket.class, PlayStatusPacket::new),
+    SERVER_TO_CLIENT_HANDSHAKE(LoginStatus.LOGIN, ServerToClientHandshake.class, ServerToClientHandshake::new),
+    CLIENT_TO_SERVER_HANDSHAKE(LoginStatus.HANDSHAKING, ClientToServerHandshake.class, ClientToServerHandshake::new),
+    DISCONNECT(LoginStatus.LOGIN, DisconnectPacket.class, DisconnectPacket::new),
+
+    // Game playing packets
+    RESOURCE_PACKS_INFO(ResourcePacksInfoPacket.class, ResourcePacksInfoPacket::new),
+    RESOURCE_PACKS_STACK(ResourcePacksStackPacket.class, ResourcePacksStackPacket::new),
+    RESOURCE_PACK_CLIENT_RESPONSE(ResourcePackClientResponsePacket.class, ResourcePackClientResponsePacket::new),
     TEXT,
-    SET_TIME(
-            SetTimePacket.class),
+    SET_TIME(SetTimePacket.class, SetTimePacket::new),
     START_GAME,
     ADD_PLAYER,
     ADD_ACTOR,
@@ -65,8 +63,7 @@ public enum PacketIdentifier {
     CONTAINER_CLOSE,
     PLAYER_HOTBAR,
     INVENTORY_CONTENT,
-    INVENTORY_SLOT(
-            InventorySlotPacket.class),
+    INVENTORY_SLOT(InventorySlotPacket.class, InventorySlotPacket::new),
     CONTAINER_SET_DATA,
     CRAFTING_DATA,
     CRAFTING_EVENT,
@@ -79,10 +76,8 @@ public enum PacketIdentifier {
     SET_DIFFICULTY,
     CHANGE_DIMENSION,
     SET_PLAYER_GAME_TYPE,
-    PLAYER_LIST(
-            PlayerListPacket.class),
-    SIMPLE_EVENT(
-            SimpleEventPacket.class),
+    PLAYER_LIST(PlayerListPacket.class, PlayerListPacket::new),
+    SIMPLE_EVENT(SimpleEventPacket.class, SimpleEventPacket::new),
     TELEMETRY_EVENT,
     SPAWN_EXPERIENCE_ORB,
     CLIENTBOUND_MAP_ITEM_DATA,
@@ -100,7 +95,7 @@ public enum PacketIdentifier {
     COMMAND_OUTPUT,
     UPDATE_TRADE,
     UPDATE_EQUIPMENT,
-    RESOURCE_PACK_DATA_INFO(ResourcePackDataInfoPacket.class),
+    RESOURCE_PACK_DATA_INFO(ResourcePackDataInfoPacket.class, ResourcePackDataInfoPacket::new),
     RESOURCE_PACK_CHUNK_DATA,
     RESOURCE_PACK_CHUNK_REQUEST,
     TRANSFER,
@@ -147,7 +142,7 @@ public enum PacketIdentifier {
     RESERVED_126,
     ADD_ENTITY,
     REMOVE_ENTITY,
-    CLIENT_CACHE_STATUS(ClientCacheStatusPacket.class),
+    CLIENT_CACHE_STATUS(ClientCacheStatusPacket.class, ClientCacheStatusPacket::new),
     ON_SCREEN_TEXTURE_ANIMATION,
     MAP_CREATE_LOCKED_COPY,
     STRUCTURE_TEMPLATE_DATA_EXPORT_REQUEST,
@@ -161,8 +156,7 @@ public enum PacketIdentifier {
     SETTINGS_COMMAND_PACKET,
     ANVIL_DAMAGE,
     COMPLETED_USING_ITEM,
-    NETWORK_SETTINGS(
-            NetworkSettingsPacket.class),
+    NETWORK_SETTINGS(NetworkSettingsPacket.class, NetworkSettingsPacket::new),
     PLAYER_AUTH_INPUT,
     CREATIVE_CONTENT,
     PLAYER_ENCHANT_OPTIONS,
@@ -191,19 +185,36 @@ public enum PacketIdentifier {
     NPC_DIALOGUE,
     ;
 
-    private Class<? extends BedrockPacket> clazz = null;
+    private final LoginStatus loginStatus;
+    private final Class<? extends BedrockPacket> clazz;
+    private final Supplier<? extends BedrockPacket> supplier;
 
     PacketIdentifier() {
+        this(PLAY);
     }
 
-    PacketIdentifier(Class<? extends BedrockPacket> clazz) {
+    PacketIdentifier(LoginStatus status) {
+        this(status, null, null);
+    }
+
+    <T extends BedrockPacket> PacketIdentifier(Class<T> clazz, Supplier<T> supplier) {
+        this(PLAY, clazz, supplier);
+    }
+
+    <T extends BedrockPacket> PacketIdentifier(LoginStatus status, Class<T> clazz, Supplier<T> supplier) {
+        this.loginStatus = status;
         this.clazz = clazz;
+        this.supplier = supplier;
+    }
+
+    public boolean satisfies(LoginStatus targetStatus) {
+        return this.loginStatus.compareTo(targetStatus) >= 0;
     }
 
     public BedrockPacket createPacket() {
-        if (clazz != null) {
+        if (supplier != null) {
             try {
-                return clazz.getDeclaredConstructor().newInstance();
+                return supplier.get();
             } catch (Exception e) {
                 throw new IllegalStateException("Unable to create packet", e);
             }

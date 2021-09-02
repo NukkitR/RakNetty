@@ -4,7 +4,7 @@ import io.netty.channel.ChannelOption;
 
 public class BedrockServerChannelOption<T> extends ChannelOption<T> {
 
-    public static final ChannelOption<Boolean> BEDROCK_IS_ONLINE = ChannelOption.valueOf("BEDROCK_IS_ONLINE");
+    public static final ChannelOption<Boolean> BEDROCK_IS_ONLINE = valueOf("BEDROCK_IS_ONLINE");
 
     @SuppressWarnings("deprecation")
     protected BedrockServerChannelOption() {

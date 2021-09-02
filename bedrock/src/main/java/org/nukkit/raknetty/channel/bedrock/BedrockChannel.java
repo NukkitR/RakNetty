@@ -2,7 +2,7 @@ package org.nukkit.raknetty.channel.bedrock;
 
 import io.netty.channel.ChannelFuture;
 import org.nukkit.raknetty.channel.RakChannel;
-import org.nukkit.raknetty.handler.codec.bedrock.data.DisconnectReason;
+import org.nukkit.raknetty.handler.codec.bedrock.DisconnectReason;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;

@@ -1,13 +1,11 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.handler.codec.bedrock.data.NetworkItemStack;
-import org.nukkit.raknetty.util.VarIntUtil;
+import org.nukkit.raknetty.handler.codec.bedrock.serialization.NetworkItemStack;
 
-public class InventorySlotPacket extends AbstractBedrockPacket implements ServerBedrockPacket, ClientBedrockPacket {
+public class InventorySlotPacket implements ServerBedrockPacket, ClientBedrockPacket {
 
     public int containerId; //+48
     public int slot; //+52
@@ -19,16 +17,16 @@ public class InventorySlotPacket extends AbstractBedrockPacket implements Server
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        VarIntUtil.writeUnsignedVarInt(buf, containerId);
-        VarIntUtil.writeUnsignedVarInt(buf, slot);
+    public void encode(BedrockByteBuf buf) throws Exception {
+        buf.writeUnsignedVarInt(containerId);
+        buf.writeUnsignedVarInt(slot);
         item.encode(buf);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        containerId = (int) VarIntUtil.readUnsignedVarInt(buf);
-        slot = (int) VarIntUtil.readUnsignedVarInt(buf);
+    public void decode(BedrockByteBuf buf) throws Exception {
+        containerId = buf.readUnsignedVarInt();
+        slot = buf.readUnsignedVarInt();
         item = new NetworkItemStack();
         item.decode(buf);
     }

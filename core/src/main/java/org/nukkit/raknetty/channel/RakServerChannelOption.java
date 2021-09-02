@@ -4,5 +4,5 @@ import io.netty.channel.ChannelOption;
 
 public class RakServerChannelOption<T> extends RakChannelOption<T> {
 
-    public static final ChannelOption<Integer> RAKNET_MAX_CONNECTIONS = ChannelOption.valueOf("RAKNET_MAX_CONNECTION");
+    public static final ChannelOption<Integer> RAKNET_MAX_CONNECTIONS = valueOf("RAKNET_MAX_CONNECTION");
 }

@@ -1,4 +1,4 @@
-package org.nukkit.raknetty.handler.codec.bedrock.data;
+package org.nukkit.raknetty.handler.codec.bedrock;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -26,22 +26,28 @@ public enum DisconnectReason {
     UNKNOWN_PACKET("unknownPacket"),
     WORLD_CORRUPTION("worldCorruption");
 
-    private final String text;
+    private static final Map<String, DisconnectReason> REASONS =
+            Arrays.stream(DisconnectReason.values()).collect(
+                    Collectors.toMap(reason -> reason.id, reason -> reason));
 
-    DisconnectReason(String text) {
-        this.text = "disconnectionScreen." + text;
+    private final String id;
+
+    DisconnectReason(String id) {
+        this.id = "disconnectionScreen." + id;
+    }
+
+    public String getId() {
+        return this.id;
     }
 
     @Override
     public String toString() {
-        return text;
+        return getId();
     }
 
-    public static DisconnectReason fromString(String text) {
-        return REASONS.get(text);
+    public static DisconnectReason findById(String id) {
+        return REASONS.get(id);
     }
 
-    private static final Map<String, DisconnectReason> REASONS =
-            Arrays.stream(DisconnectReason.values()).collect(
-                    Collectors.toMap(reason -> reason.text, reason -> reason));
+
 }

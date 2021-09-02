@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.nukkit.raknetty.handler.codec.MessageIdentifier;
 import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
-import org.nukkit.raknetty.util.BinaryUtil;
+import org.nukkit.raknetty.util.RakNetUtil;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -24,9 +24,9 @@ public class NewIncomingConnection implements ReliabilityMessage {
 
     @Override
     public void encode(ByteBuf buf) {
-        BinaryUtil.writeAddress(buf, serverAddress);
+        RakNetUtil.writeAddress(buf, serverAddress);
         for (int i = 0; i < clientAddresses.length; i++) {
-            BinaryUtil.writeAddress(buf, clientAddresses[i]);
+            RakNetUtil.writeAddress(buf, clientAddresses[i]);
         }
         buf.writeLong(pingTime);
         buf.writeLong(pongTime);
@@ -34,10 +34,10 @@ public class NewIncomingConnection implements ReliabilityMessage {
 
     @Override
     public void decode(ByteBuf buf) {
-        serverAddress = BinaryUtil.readAddress(buf);
+        serverAddress = RakNetUtil.readAddress(buf);
         List<InetSocketAddress> list = new ArrayList<>();
         do {
-            list.add(BinaryUtil.readAddress(buf));
+            list.add(RakNetUtil.readAddress(buf));
         } while (buf.readableBytes() > 16);
         clientAddresses = list.toArray(new InetSocketAddress[0]);
         pingTime = buf.readLong();

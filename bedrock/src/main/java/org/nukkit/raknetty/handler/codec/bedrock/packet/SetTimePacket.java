@@ -1,12 +1,10 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.util.VarIntUtil;
 
-public class SetTimePacket extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class SetTimePacket implements ServerBedrockPacket {
 
     public int time;
 
@@ -16,13 +14,13 @@ public class SetTimePacket extends AbstractBedrockPacket implements ServerBedroc
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        VarIntUtil.writeVarInt(buf, time);
+    public void encode(BedrockByteBuf buf) throws Exception {
+        buf.writeVarInt(time);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        time = VarIntUtil.readVarInt(buf);
+    public void decode(BedrockByteBuf buf) throws Exception {
+        time = buf.readVarInt();
     }
 
     @Override

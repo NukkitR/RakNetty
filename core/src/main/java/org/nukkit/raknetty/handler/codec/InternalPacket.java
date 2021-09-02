@@ -6,7 +6,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.DefaultByteBufHolder;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.util.BinaryUtil;
+import org.nukkit.raknetty.util.RakNetUtil;
 
 public class InternalPacket extends AbstractInternalPacket implements ByteBufHolder {
 
@@ -117,7 +117,7 @@ public class InternalPacket extends AbstractInternalPacket implements ByteBufHol
 
         // we want to make sure the packet have enough bytes left to read
         // and it should be smaller than the MTU size
-        int bodyLength = BinaryUtil.bitToBytes(bitLength);
+        int bodyLength = RakNetUtil.bitToBytes(bitLength);
 
         Validate.isTrue(bodyLength <= buf.readableBytes(), "not enough bytes to read");
         data = buf.readBytes(bodyLength);

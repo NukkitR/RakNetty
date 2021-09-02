@@ -1,28 +1,28 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
+import org.nukkit.api.SemVersion;
+import org.nukkit.api.packs.PackInstanceId;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.handler.codec.bedrock.data.Experiment;
-import org.nukkit.raknetty.handler.codec.bedrock.data.PackInstanceId;
-import org.nukkit.raknetty.handler.codec.bedrock.data.SemVersion;
-import org.nukkit.raknetty.util.VarIntUtil;
+import org.nukkit.raknetty.handler.codec.bedrock.serialization.Experiments;
+import org.nukkit.raknetty.handler.codec.bedrock.serialization.NetworkSerializer;
 
 import java.util.Collection;
+import java.util.UUID;
 
-public class ResourcePacksStackPacket extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class ResourcePacksStackPacket implements ServerBedrockPacket {
+
+    private final static PackInstanceIdSerializer SERIALIZER = new PackInstanceIdSerializer();
 
     /**
      * Force clients to use texture packs in the current world
      */
     public boolean isTexturePacksRequired;
-    public Collection<PackInstanceId> behaviorPacksInfo;
-    public Collection<PackInstanceId> resourcePacksInfo;
+    public Collection<PackInstanceId> behaviorPackStack;
+    public Collection<PackInstanceId> resourcePackStack;
     public SemVersion baseGameVersion;
-    public Collection<Experiment> experiments;
-    boolean wereAnyExperimentsEverToggled;
+    public Experiments experiments;
 
     @Override
     public PacketIdentifier getId() {
@@ -30,39 +30,49 @@ public class ResourcePacksStackPacket extends AbstractBedrockPacket implements S
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        // lambda_cb039857828abad34c85c26a065e4638_::operator()
+    public void encode(BedrockByteBuf buf) throws Exception {
         buf.writeBoolean(isTexturePacksRequired);
-        BedrockPacketUtil.writeList(buf, behaviorPacksInfo, (length) -> {
-            VarIntUtil.writeUnsignedVarInt(buf, length);
-        });
-        BedrockPacketUtil.writeList(buf, resourcePacksInfo, (length) -> {
-            VarIntUtil.writeUnsignedVarInt(buf, length);
-        });
-        BedrockPacketUtil.writeString(buf, baseGameVersion.toString());
-        BedrockPacketUtil.writeList(buf, experiments, buf::writeIntLE);
-        buf.writeBoolean(wereAnyExperimentsEverToggled);
+        buf.writeList(behaviorPackStack, SERIALIZER, buf::writeUnsignedVarInt);
+        buf.writeList(resourcePackStack, SERIALIZER, buf::writeUnsignedVarInt);
+        buf.writeString(baseGameVersion.asString());
+        experiments.encode(buf);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
+    public void decode(BedrockByteBuf buf) throws Exception {
         isTexturePacksRequired = buf.readBoolean();
-        behaviorPacksInfo = BedrockPacketUtil.readList(buf, PackInstanceId.class, () -> VarIntUtil.readUnsignedVarInt(buf));
-        resourcePacksInfo = BedrockPacketUtil.readList(buf, PackInstanceId.class, () -> VarIntUtil.readUnsignedVarInt(buf));
-        baseGameVersion = new SemVersion(BedrockPacketUtil.readString(buf));
-        experiments = BedrockPacketUtil.readList(buf, Experiment.class, () -> VarIntUtil.readUnsignedVarInt(buf));
-        wereAnyExperimentsEverToggled = buf.readBoolean();
+        behaviorPackStack = buf.readList(SERIALIZER, buf::readUnsignedVarInt);
+        resourcePackStack = buf.readList(SERIALIZER, buf::readUnsignedVarInt);
+        baseGameVersion = SemVersion.fromString(buf.readString());
+        experiments = new Experiments();
+        experiments.decode(buf);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .append("isTexturePacksRequired", isTexturePacksRequired)
-                .append("behaviorPacksInfo", behaviorPacksInfo)
-                .append("resourcePacksInfo", resourcePacksInfo)
+                .append("behaviorPacksInfo", behaviorPackStack)
+                .append("resourcePacksInfo", resourcePackStack)
                 .append("baseGameVersion", baseGameVersion)
                 .append("experiments", experiments)
-                .append("wereAnyExperimentsEverToggled", wereAnyExperimentsEverToggled)
                 .toString();
+    }
+
+    private static class PackInstanceIdSerializer implements NetworkSerializer<PackInstanceId> {
+        @Override
+        public void encode(BedrockByteBuf buf, PackInstanceId packInstanceId) throws Exception {
+            buf.writeString(packInstanceId.getPackId().toString());
+            buf.writeString(packInstanceId.getVersion());
+            buf.writeString(packInstanceId.getSubpackFolderName());
+        }
+
+        @Override
+        public PackInstanceId decode(BedrockByteBuf buf) throws Exception {
+            String uuid = buf.readString();
+            String version = buf.readString();
+            String subpackFolderName = buf.readString();
+            return new PackInstanceId(UUID.fromString(uuid), version, subpackFolderName);
+        }
     }
 }

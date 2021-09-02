@@ -5,12 +5,10 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 import org.nukkit.raknetty.handler.codec.bedrock.WebTokenUtil;
 import org.slf4j.Logger;
@@ -20,7 +18,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.util.Base64;
 
-public class ServerToClientHandshake extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class ServerToClientHandshake implements ServerBedrockPacket {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerToClientHandshake.class);
 
@@ -34,7 +32,7 @@ public class ServerToClientHandshake extends AbstractBedrockPacket implements Se
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(BedrockByteBuf buf) {
         Validate.notNull(serverPrivateKey, "private key cannot be null");
         Validate.notNull(serverPublicKey, "public key cannot be null");
         Validate.notNull(salt, "salt cannot be empty");
@@ -46,12 +44,12 @@ public class ServerToClientHandshake extends AbstractBedrockPacket implements Se
                 .signWith(serverPrivateKey, SignatureAlgorithm.ES384)
                 .compact();
 
-        BedrockPacketUtil.writeString(buf, token);
+        buf.writeString(token);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        String token = BedrockPacketUtil.readString(buf);
+    public void decode(BedrockByteBuf buf) throws Exception {
+        String token = buf.readString();
         Validate.notNull(token, "failed to read web token");
 
         Jws<Claims> jws = WebTokenUtil.parse(token);

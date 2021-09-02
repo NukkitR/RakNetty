@@ -1,12 +1,9 @@
-package org.nukkit.raknetty.handler.codec.bedrock.data;
+package org.nukkit.raknetty.handler.codec.bedrock.serialization;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.ByteBufSerializable;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
-import org.nukkit.raknetty.util.VarIntUtil;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 
-public class NetworkItemStack implements ByteBufSerializable {
+public class NetworkItemStack implements NetworkSerializable {
 
     public int id;
     public int stackSize;
@@ -21,38 +18,42 @@ public class NetworkItemStack implements ByteBufSerializable {
     public String name;
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
+    public void encode(BedrockByteBuf buf) throws Exception {
         if (id <= 0) {
-            VarIntUtil.writeVarInt(buf, 0);
+            buf.writeVarInt(0);
             return;
         }
 
-        VarIntUtil.writeVarInt(buf, id);
+        buf.writeVarInt(id);
         buf.writeShortLE(stackSize);
-        VarIntUtil.writeUnsignedVarInt(buf, auxValue);
+        buf.writeUnsignedVarInt(auxValue);
 
         buf.writeBoolean(hasServerNetId);
         if (serverNetId == 1 || serverNetId == 2) {
-            VarIntUtil.writeVarInt(buf, serverNetId);
+            buf.writeVarInt(serverNetId);
         } else {
-            VarIntUtil.writeUnsignedVarInt(buf, 0);
+            buf.writeUnsignedVarInt(0);
         }
-        VarIntUtil.writeVarInt(buf, runtimeId);
-        BedrockPacketUtil.writeString(buf, name);
+        buf.writeVarInt(runtimeId);
+        buf.writeString(name);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        id = VarIntUtil.readVarInt(buf);
+    public void decode(BedrockByteBuf buf) throws Exception {
+        id = buf.readVarInt();
         if (id <= 0) return;
 
         stackSize = buf.readUnsignedShortLE();
-        auxValue = (int) VarIntUtil.readUnsignedVarInt(buf);
+        auxValue = buf.readUnsignedVarInt();
 
         hasServerNetId = buf.readBoolean();
-        serverNetId = VarIntUtil.readVarInt(buf);
-        runtimeId = VarIntUtil.readVarInt(buf);
-        name = BedrockPacketUtil.readString(buf);
+        if (hasServerNetId) {
+            serverNetId = buf.readVarInt();
+        } else {
+            serverNetId = 0;
+        }
+        runtimeId = buf.readVarInt();
+        name = buf.readString();
     }
 
     @Override

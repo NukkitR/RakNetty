@@ -1,16 +1,13 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
+import org.nukkit.api.packs.PackIdVersion;
+import org.nukkit.api.packs.PackType;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.handler.codec.bedrock.data.PackIdVersion;
-import org.nukkit.raknetty.handler.codec.bedrock.data.PackType;
-import org.nukkit.raknetty.util.VarIntUtil;
 
-public class ResourcePackDataInfoPacket extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class ResourcePackDataInfoPacket implements ServerBedrockPacket {
 
     public PackIdVersion packIdVersion;
     public int chunkSize;
@@ -18,7 +15,6 @@ public class ResourcePackDataInfoPacket extends AbstractBedrockPacket implements
     public long fileSize;
     public byte[] checksum; //CryptoUtils::getFileChecksum
     public boolean isPremium;
-    public PackType packType;
 
     @Override
     public PacketIdentifier getId() {
@@ -26,27 +22,28 @@ public class ResourcePackDataInfoPacket extends AbstractBedrockPacket implements
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        BedrockPacketUtil.writeString(buf, packIdVersion.toString());
+    public void encode(BedrockByteBuf buf) throws Exception {
+        buf.writeString(packIdVersion.toString());
         buf.writeIntLE(chunkSize);
         buf.writeIntLE(chunkCount);
         buf.writeLongLE(fileSize);
         buf.writeBytes(checksum);
         buf.writeBoolean(isPremium);
-        buf.writeByte(packType.ordinal());
+        buf.writeEnum(packIdVersion.packType());
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        packIdVersion = new PackIdVersion(BedrockPacketUtil.readString(buf));
+    public void decode(BedrockByteBuf buf) throws Exception {
+        String str = buf.readString();
         chunkSize = buf.readIntLE();
         chunkCount = buf.readIntLE();
         fileSize = buf.readLongLE();
-        int len = (int) VarIntUtil.readUnsignedVarInt(buf);
+        int len = buf.readUnsignedVarInt();
         checksum = new byte[len];
         buf.readBytes(checksum);
         isPremium = buf.readBoolean();
-        packType = PackType.valueOf(buf.readUnsignedByte());
+        PackType packType = buf.readEnum(PackType.class);
+        packIdVersion = PackIdVersion.fromString(str, packType);
     }
 
     @Override
@@ -58,7 +55,7 @@ public class ResourcePackDataInfoPacket extends AbstractBedrockPacket implements
                 .append("fileSize", fileSize)
                 .append("checksum", ByteBufUtil.hexDump(checksum))
                 .append("isPremium", isPremium)
-                .append("packType", packType)
+                .append("packType", packIdVersion.packType())
                 .toString();
     }
 }

@@ -1,11 +1,10 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
 
-public class NetworkSettingsPacket extends AbstractBedrockPacket implements ServerBedrockPacket {
+public class NetworkSettingsPacket implements ServerBedrockPacket {
 
     public int compressionThreshold;
 
@@ -15,12 +14,12 @@ public class NetworkSettingsPacket extends AbstractBedrockPacket implements Serv
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
+    public void encode(BedrockByteBuf buf) throws Exception {
         buf.writeShortLE(compressionThreshold);
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
+    public void decode(BedrockByteBuf buf) throws Exception {
         compressionThreshold = buf.readUnsignedShortLE();
     }
 

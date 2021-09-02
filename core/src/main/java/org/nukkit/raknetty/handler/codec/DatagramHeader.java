@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-public final class DatagramHeader implements Cloneable, ByteBufSerializable {
+public final class DatagramHeader implements Cloneable {
 
     public static final int HEADER_LENGTH_BYTES = 2 + 3 + 4; // 2 + 3 + sizeof(float) * 1
 
@@ -71,7 +71,6 @@ public final class DatagramHeader implements Cloneable, ByteBufSerializable {
         return header;
     }
 
-    @Override
     public void encode(ByteBuf buf) {
         byte header = toByte();
 
@@ -108,7 +107,6 @@ public final class DatagramHeader implements Cloneable, ByteBufSerializable {
         }
     }
 
-    @Override
     public void decode(ByteBuf buf) {
         byte header = buf.readByte();
         decode(header);

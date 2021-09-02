@@ -1,21 +1,16 @@
 package org.nukkit.raknetty.handler.codec.bedrock.packet;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.bedrock.AbstractBedrockPacket;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.handler.codec.bedrock.PacketIdentifier;
-import org.nukkit.raknetty.handler.codec.bedrock.data.PackIdVersion;
-import org.nukkit.raknetty.handler.codec.bedrock.data.ResourcePackClientStatus;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class ResourcePackClientResponsePacket extends AbstractBedrockPacket implements ClientBedrockPacket {
+public class ResourcePackClientResponsePacket implements ClientBedrockPacket {
 
-
-    public ResourcePackClientStatus status = ResourcePackClientStatus.REFUSED;
-    public Collection<PackIdVersion> packIdVersions;
+    public Status status = Status.REFUSED;
+    public Collection<String> packIdVersions;
 
     @Override
     public PacketIdentifier getId() {
@@ -23,22 +18,21 @@ public class ResourcePackClientResponsePacket extends AbstractBedrockPacket impl
     }
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        buf.writeByte(status.ordinal());
+    public void encode(BedrockByteBuf buf) throws Exception {
+        buf.writeEnum(status);
         buf.writeShortLE(packIdVersions.size());
-        for (PackIdVersion packIdVersion : packIdVersions) {
-            BedrockPacketUtil.writeString(buf, packIdVersion.toString());
+        for (String packIdVersion : packIdVersions) {
+            buf.writeString(packIdVersion);
         }
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        status = ResourcePackClientStatus.valueOf(buf.readUnsignedByte());
+    public void decode(BedrockByteBuf buf) throws Exception {
+        status = buf.readEnum(Status.class);
         int length = buf.readUnsignedShortLE();
         packIdVersions = new ArrayList<>(length);
         for (int i = 0; i < length; i++) {
-            String string = BedrockPacketUtil.readString(buf);
-            packIdVersions.add(new PackIdVersion(string));
+            packIdVersions.add(buf.readString());
         }
     }
 
@@ -48,5 +42,13 @@ public class ResourcePackClientResponsePacket extends AbstractBedrockPacket impl
                 .append("response", status)
                 .append("packIdVersions", packIdVersions)
                 .toString();
+    }
+
+    public enum Status {
+        NONE,
+        REFUSED,
+        DOWNLOADING,
+        DOWNLOAD_FINISHED,
+        READY;
     }
 }

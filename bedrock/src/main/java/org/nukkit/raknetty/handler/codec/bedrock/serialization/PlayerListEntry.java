@@ -1,15 +1,11 @@
-package org.nukkit.raknetty.handler.codec.bedrock.data;
+package org.nukkit.raknetty.handler.codec.bedrock.serialization;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.nukkit.raknetty.handler.codec.ByteBufSerializable;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockPacketUtil;
-import org.nukkit.raknetty.util.VarIntUtil;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 
 import java.util.UUID;
 
-public class PlayerListEntry implements ByteBufSerializable {
+public class PlayerListEntry implements NetworkSerializable {
 
     public UUID uuid;
     public long uniqueId;
@@ -17,18 +13,17 @@ public class PlayerListEntry implements ByteBufSerializable {
     public String xuid;
     public String platformOnlineId; //Player::getPlatformOnlineId
     public int platform;            //Player::getPlatform
-    public SkinData skinData;
+    public SerializedSkin skinData;
     public boolean isTeacher;       //ServerPlayer::isTeacher
     public boolean isHostingPlayer; //ServerPlayer::isHostingPlayer
 
     @Override
-    public void encode(ByteBuf buf) throws Exception {
-        buf.writeLongLE(uuid.getMostSignificantBits());
-        buf.writeLongLE(uuid.getLeastSignificantBits());
-        VarIntUtil.writeVarLong(buf, uniqueId);
-        BedrockPacketUtil.writeString(buf, name);
-        BedrockPacketUtil.writeString(buf, xuid);
-        BedrockPacketUtil.writeString(buf, platformOnlineId);
+    public void encode(BedrockByteBuf buf) throws Exception {
+        buf.writeUUID(uuid);
+        buf.writeVarLong(uniqueId);
+        buf.writeString(name);
+        buf.writeString(xuid);
+        buf.writeString(platformOnlineId);
         buf.writeIntLE(platform);
         skinData.encode(buf);
         buf.writeBoolean(isTeacher);
@@ -36,19 +31,17 @@ public class PlayerListEntry implements ByteBufSerializable {
     }
 
     @Override
-    public void decode(ByteBuf buf) throws Exception {
-        uuid = new UUID(buf.readLongLE(), buf.readLongLE());
-        uniqueId = VarIntUtil.readVarLong(buf);
-        name = BedrockPacketUtil.readString(buf);
-        xuid = BedrockPacketUtil.readString(buf);
-        platformOnlineId = BedrockPacketUtil.readString(buf);
+    public void decode(BedrockByteBuf buf) throws Exception {
+        uuid = buf.readUUID();
+        uniqueId = buf.readVarLong();
+        name = buf.readString();
+        xuid = buf.readString();
+        platformOnlineId = buf.readString();
         platform = buf.readIntLE();
-        skinData = new SkinData();
+        skinData = new SerializedSkin();
         skinData.decode(buf);
         isTeacher = buf.readBoolean();
         isHostingPlayer = buf.readBoolean();
-
-        System.out.println(ByteBufUtil.prettyHexDump(buf));
     }
 
     @Override

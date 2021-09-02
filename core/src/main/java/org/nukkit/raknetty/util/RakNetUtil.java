@@ -10,7 +10,7 @@ import java.net.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class BinaryUtil {
+public class RakNetUtil {
 
     public static byte getByte(ByteBuf buf) {
         return buf.getByte(buf.readerIndex());

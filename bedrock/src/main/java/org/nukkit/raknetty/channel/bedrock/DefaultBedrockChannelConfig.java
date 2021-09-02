@@ -5,7 +5,7 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
 import org.nukkit.raknetty.channel.DefaultRakChannelConfig;
 import org.nukkit.raknetty.channel.RakChannelConfig;
-import org.nukkit.raknetty.handler.codec.bedrock.data.SkinData;
+import org.nukkit.raknetty.handler.codec.bedrock.serialization.SerializedSkin;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.Map;
@@ -15,7 +15,7 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
 
     private volatile boolean isOnline = true;
     private volatile String username = "Steve";
-    private volatile SkinData skinData = SkinData.generate();
+    private volatile SerializedSkin skinData = SerializedSkin.randomSkin();
 
     private final RakChannelConfig rakConfig;
 
@@ -62,7 +62,7 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
         } else if (option == BedrockChannelOption.BEDROCK_USERNAME) {
             setUserName((String) value);
         } else if (option == BedrockChannelOption.BEDROCK_SKIN_DATA) {
-            setSkinData((SkinData) value);
+            setSkinData((SerializedSkin) value);
         } else {
             return rakConfig().setOption(option, value);
         }
@@ -94,12 +94,12 @@ public class DefaultBedrockChannelConfig extends DefaultChannelConfig implements
     }
 
     @Override
-    public SkinData getSkinData() {
+    public SerializedSkin getSkinData() {
         return skinData;
     }
 
     @Override
-    public BedrockChannelConfig setSkinData(SkinData skinData) {
+    public BedrockChannelConfig setSkinData(SerializedSkin skinData) {
         this.skinData = skinData;
         return this;
     }

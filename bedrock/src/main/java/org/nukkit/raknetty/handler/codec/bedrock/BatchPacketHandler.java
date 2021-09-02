@@ -8,8 +8,9 @@ import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import org.apache.commons.lang3.Validate;
+import org.nukkit.raknetty.buffer.BedrockByteBuf;
 import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
-import org.nukkit.raknetty.util.VarIntUtil;
+import org.nukkit.raknetty.handler.codec.bedrock.packet.BedrockPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +35,10 @@ public class BatchPacketHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         try {
-            ByteBuf buf = (ByteBuf) msg;
+            BedrockByteBuf buf = BedrockByteBuf.wrap((ByteBuf) msg);
 
             while (buf.isReadable()) {
-                int size = (int) VarIntUtil.readUnsignedVarInt(buf);
+                int size = buf.readUnsignedVarInt();
                 ByteBuf slice = buf.slice(buf.readerIndex(), size);
                 buf.skipBytes(size);
                 ctx.fireChannelRead(slice.retain());
@@ -86,12 +87,12 @@ public class BatchPacketHandler extends ChannelDuplexHandler {
 
         for (BedrockPacket packet : packets) {
             try {
-                ByteBuf body = ctx.alloc().buffer();
-                VarIntUtil.writeUnsignedVarInt(body, packet.getId().ordinal());
+                BedrockByteBuf body = BedrockByteBuf.wrap(ctx.alloc().buffer());
+                body.writeEnum(packet.getId());
                 packet.encode(body);
 
-                ByteBuf header = ctx.alloc().buffer(5, 10);
-                VarIntUtil.writeUnsignedVarInt(header, body.readableBytes());
+                BedrockByteBuf header = BedrockByteBuf.wrap(ctx.alloc().buffer(5, 10));
+                header.writeUnsignedVarInt(body.readableBytes());
                 out.addComponents(true, header, body);
 
                 //LOGGER.debug("Write packet: {}, \n{}", packet, ByteBufUtil.prettyHexDump(body));
