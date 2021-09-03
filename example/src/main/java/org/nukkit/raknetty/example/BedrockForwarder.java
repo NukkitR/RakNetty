@@ -13,6 +13,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.nukkit.network.BedrockOfflinePingResponder;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakChannelOption;
 import org.nukkit.raknetty.channel.RakServerChannel;
@@ -21,7 +22,6 @@ import org.nukkit.raknetty.channel.nio.NioRakChannel;
 import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
 import org.nukkit.raknetty.handler.codec.PacketPriority;
 import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockOfflinePingResponder;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;

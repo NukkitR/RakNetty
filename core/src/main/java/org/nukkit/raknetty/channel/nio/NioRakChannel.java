@@ -60,11 +60,11 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         this(null);
     }
 
-    NioRakChannel(final RakServerChannel parent) {
+    protected NioRakChannel(final RakServerChannel parent) {
         this(parent, parent == null ? new NioDatagramChannel() : parent.udpChannel());
     }
 
-    NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
+    protected NioRakChannel(final RakServerChannel parent, final DatagramChannel udpChannel) {
         super(parent, udpChannel);
         config = newConfig();
 
@@ -397,7 +397,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                             connectPromise = null;
 
                             if (future.isSuccess()) {
-                                LOGGER.debug("CONNECT: SUCCESS");
+                                LOGGER.debug("{} CONNECTED", NioRakChannel.this);
                             } else {
                                 // connection is not successful
                                 if (isOpen()) {
@@ -405,9 +405,9 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                                 }
 
                                 if (future.isCancelled()) {
-                                    LOGGER.debug("CONNECT: CANCELLED");
+                                    LOGGER.debug("{} CONNECTION CANCELLED", NioRakChannel.this);
                                 } else {
-                                    LOGGER.debug("CONNECT: FAILED");
+                                    LOGGER.debug("{} CONNECTION FAILED", NioRakChannel.this);
                                 }
                             }
                         }

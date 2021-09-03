@@ -2,7 +2,6 @@ package org.nukkit.raknetty.example;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
@@ -12,10 +11,12 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.nukkit.SharedConstants;
+import org.nukkit.network.BedrockOfflinePingResponder;
+import org.nukkit.network.ServerBedrockPacketHandler;
+import org.nukkit.network.channel.BedrockChannel;
+import org.nukkit.network.channel.NioBedrockServerChannel;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
-import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
-import org.nukkit.raknetty.channel.nio.NioBedrockServerChannel;
-import org.nukkit.raknetty.handler.codec.bedrock.BedrockOfflinePingResponder;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponder;
 
 import java.util.concurrent.ThreadFactory;
@@ -41,18 +42,13 @@ public class BedrockServer {
             final ServerBootstrap boot = new ServerBootstrap();
             boot.group(acceptGroup, connectGroup)
                     .channel(NioBedrockServerChannel.class)
-                    .option(RakServerChannelOption.RAKNET_GUID, 123456L)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 15)
                     .handler(new LoggingHandler("RakServerLogger", LogLevel.DEBUG))
                     .childHandler(new ChannelInitializer<BedrockChannel>() {
                         @Override
                         public void initChannel(final BedrockChannel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG) {
-                                @Override
-                                public void flush(ChannelHandlerContext ctx) throws Exception {
-                                    super.flush(ctx);
-                                }
-                            });
+                            ch.pipeline().addLast(new ServerBedrockPacketHandler());
+                            ch.pipeline().addLast(new LoggingHandler("ChannelLogger", LogLevel.DEBUG));
                         }
                     });
             // Start the server.
@@ -62,7 +58,7 @@ public class BedrockServer {
             // Setup the offline responder
             final OfflinePingResponder responder = new BedrockOfflinePingResponder(channel, null)
                     .serverName("Bedrock Server by RakNetty")
-                    .protocolVersion(440)
+                    .protocolVersion(SharedConstants.NETWORK_PROTOCOL_VERSION)
                     .gameVersion("1.17.2")
                     .playerCount(0)
                     .levelName("Bedrock level")

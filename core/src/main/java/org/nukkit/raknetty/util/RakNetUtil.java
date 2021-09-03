@@ -12,14 +12,6 @@ import java.util.function.Supplier;
 
 public class RakNetUtil {
 
-    public static byte getByte(ByteBuf buf) {
-        return buf.getByte(buf.readerIndex());
-    }
-
-    public static int getUnsignedByte(ByteBuf buf) {
-        return buf.getUnsignedByte(buf.readerIndex());
-    }
-
     public static InetSocketAddress readAddress(ByteBuf buf) {
         byte ipVersion = buf.readByte();
         byte[] binary;

@@ -141,7 +141,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
                         NewIncomingConnection in = new NewIncomingConnection();
                         in.decode(buf);
 
-                        LOGGER.debug("CONNECTED: {}", in);
+                        //LOGGER.debug("CONNECTED, {}", in);
 
                         onConnectedPong(in.pingTime, in.pongTime);
                     }
@@ -153,7 +153,7 @@ public class ReliabilityMessageHandler extends ChannelDuplexHandler {
 
                     onConnectedPong(in.pingTime, in.pongTime);
 
-                    LOGGER.debug("Average ping: {} ms", averagePing());
+                    LOGGER.debug("{} PING: {} ms", channel, averagePing());
                     break;
                 }
                 case ID_CONNECTED_PING: {

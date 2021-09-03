@@ -21,7 +21,6 @@
     <modules>
         <module>all</module>
         <module>core</module>
-        <module>bedrock</module>
         <module>example</module>
     </modules>
 

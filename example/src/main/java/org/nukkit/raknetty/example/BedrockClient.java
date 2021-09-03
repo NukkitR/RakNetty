@@ -1,7 +1,9 @@
 package org.nukkit.raknetty.example;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -9,10 +11,11 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.nukkit.raknetty.channel.RakChannelOption;
-import org.nukkit.raknetty.channel.bedrock.BedrockChannel;
-import org.nukkit.raknetty.channel.bedrock.BedrockChannelOption;
-import org.nukkit.raknetty.channel.nio.NioBedrockChannel;
+import org.nukkit.SharedConstants;
+import org.nukkit.network.ClientBedrockPacketHandler;
+import org.nukkit.network.channel.BedrockChannel;
+import org.nukkit.network.channel.BedrockChannelOption;
+import org.nukkit.network.channel.NioBedrockChannel;
 
 public class BedrockClient {
 
@@ -30,18 +33,14 @@ public class BedrockClient {
             final Bootstrap boot = new Bootstrap();
             boot.group(workGroup)
                     .channel(NioBedrockChannel.class)
-                    .option(RakChannelOption.RAKNET_GUID, 654321L)
                     .option(BedrockChannelOption.BEDROCK_IS_ONLINE, false)
+                    .option(BedrockChannelOption.BEDROCK_PROTOCOL_VERSION, SharedConstants.NETWORK_PROTOCOL_VERSION)
+                    .option(BedrockChannelOption.BEDROCK_USERNAME, "Alex")
                     .handler(new ChannelInitializer<Channel>() {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
-                            ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.INFO) {
-                                @Override
-                                public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
-                                    //LOGGER.debug(new RuntimeException());
-                                    super.close(ctx, promise);
-                                }
-                            });
+                            ch.pipeline().addLast(new ClientBedrockPacketHandler());
+                            ch.pipeline().addLast(new LoggingHandler("RakLogger", LogLevel.INFO));
                         }
                     });
 
