@@ -21,7 +21,7 @@
     <modules>
         <module>all</module>
         <module>core</module>
-        <module>example</module>
+        <!--<module>example</module>-->
     </modules>
 
     <dependencyManagement>
