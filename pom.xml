@@ -78,7 +78,7 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
                     <excludes>
-                        <exclude>org/nukkit/example</exclude>
+                        <exclude>org/nukkit/raknetty/example/**</exclude>
                         <exclude>log4j2.xml</exclude>
                     </excludes>
                 </configuration>
