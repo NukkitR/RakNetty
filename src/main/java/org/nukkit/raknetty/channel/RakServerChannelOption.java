@@ -5,7 +5,15 @@ import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponse;
 
 public class RakServerChannelOption<T> extends ChannelOption<T> {
 
-    public static final ChannelOption<Long> RAKNET_GUID = ChannelOption.valueOf("RAKNET_GUID");
+    // Shared options
+    public static final ChannelOption<Long> RAKNET_GUID
+            = RakChannelOption.RAKNET_GUID;
+    public static final ChannelOption<Integer> RAKNET_NUMBER_OF_INTERNAL_IDS
+            = RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS;
+    public static final ChannelOption<Integer> RAKNET_PROTOCOL_VERSION
+            = RakChannelOption.RAKNET_PROTOCOL_VERSION;
+
+    // Reactor options
     public static final ChannelOption<Integer> RAKNET_MAX_CONNECTIONS
             = ChannelOption.valueOf("RAKNET_MAX_CONNECTION");
     public static final ChannelOption<Integer> RAKNET_MAX_MTU_SIZE

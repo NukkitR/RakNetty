@@ -29,9 +29,10 @@ public class RakNettyClient {
                     .channel(NioRakChannel.class)
                     .option(RakChannelOption.RAKNET_GUID, 654321L)
                     // consist with the bedrock RakNet configuration
+                    .option(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
+                    .option(RakChannelOption.RAKNET_PROTOCOL_VERSION, 10)
                     .option(RakChannelOption.RAKNET_CONNECT_INTERVAL, 500)
                     .option(RakChannelOption.RAKNET_CONNECT_ATTEMPTS, 12)
-                    .option(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                     .handler(new LoggingHandler("Connection", LogLevel.INFO));
 
             // Connect the client to the server

@@ -6,7 +6,6 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.nukkit.raknetty.channel.AddressedOfflineMessage;
 import org.nukkit.raknetty.channel.RakChannel;
 import org.nukkit.raknetty.channel.RakServerChannel;
-import org.nukkit.raknetty.handler.codec.Message;
 import org.nukkit.raknetty.handler.codec.OfflineMessage;
 
 import java.net.InetAddress;
@@ -67,11 +66,12 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 // check if we are receiving a connection request from an incompatible client
                 // if true, close the connection request.
                 int remoteProtocol = in.protocol;
-                if (remoteProtocol != Message.RAKNET_PROTOCOL_VERSION) {
+                int localProtocol = channel().config().getRakNetProtocolVersion();
+                if (remoteProtocol != localProtocol) {
                     LOGGER.debug("Rejecting connection request from {}: outdated client", sender);
 
                     IncompatibleProtocolVersion out = new IncompatibleProtocolVersion();
-                    out.protocol = Message.RAKNET_PROTOCOL_VERSION;
+                    out.protocol = localProtocol;
                     out.senderGuid = channel().localGuid();
 
                     reply = out;

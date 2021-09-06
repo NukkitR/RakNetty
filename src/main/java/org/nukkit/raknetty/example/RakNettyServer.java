@@ -10,7 +10,6 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.nukkit.raknetty.channel.RakChannelOption;
 import org.nukkit.raknetty.channel.RakServerChannelOption;
 import org.nukkit.raknetty.channel.nio.NioRakServerChannel;
 
@@ -38,12 +37,12 @@ public class RakNettyServer {
                     .channel(NioRakServerChannel.class)
                     // reactor channel options
                     .option(RakServerChannelOption.RAKNET_GUID, 123456L)
+                    .option(RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
+                    .option(RakServerChannelOption.RAKNET_PROTOCOL_VERSION, 10)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 15)
                     .option(RakServerChannelOption.RAKNET_MAX_MTU_SIZE, 1400)
                     .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER, new ExampleBedrockPingResponse.Builder())
                     .handler(new LoggingHandler("Reactor", LogLevel.INFO))
-                    // child channel options
-                    .childOption(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                     .childHandler(new LoggingHandler("Connection", LogLevel.INFO));
 
             // Start the server.

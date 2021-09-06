@@ -26,7 +26,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.nukkit.raknetty.handler.codec.InternalPacket.NUMBER_OF_ORDERED_STREAMS;
-import static org.nukkit.raknetty.handler.codec.Message.RAKNET_PROTOCOL_VERSION;
 import static org.nukkit.raknetty.handler.codec.reliability.ReliabilityMessageHandler.MAX_PING;
 
 public class NioRakChannel extends AbstractRakDatagramChannel implements RakChannel {
@@ -277,13 +276,8 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
     @Override
     public NioRakChannel mtuSize(int mtuSize) {
         Validate.isTrue(slidingWindow == null, "mtu size is immutable and cannot be changed.");
-        Validate.isTrue(mtuSize > 0, "mtu size must be positive");
-
-        if (!isClient()) {
-            mtuSize = Math.min(mtuSize, parent().config().getMaximumMtuSize());
-        } else {
-            mtuSize = Math.min(mtuSize, SlidingWindow.MAXIMUM_MTU_SIZE);
-        }
+        Validate.isTrue(mtuSize > 0, "mtu size must be positive.");
+        Validate.isTrue(mtuSize < SlidingWindow.MAXIMUM_MTU_SIZE, "mtu size too big.");
 
         this.mtuSize = mtuSize;
         slidingWindow = new SlidingWindow(this, mtuSize);
@@ -444,7 +438,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         public void run() {
 
             int attempts = config().getConnectAttempts();
-            int[] mtuSizes = config().getMtuSizes();
+            int[] mtuSizes = config().getConnectMtuSizes();
             int mtuNum = mtuSizes.length;
 
             if (connectMode() == ConnectMode.REQUESTED_CONNECTION || connectMode() == ConnectMode.CONNECTED) {
@@ -466,7 +460,7 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
 
             if (remoteAddress() != null) {
                 OpenConnectionRequest1 request = new OpenConnectionRequest1();
-                request.protocol = RAKNET_PROTOCOL_VERSION;
+                request.protocol = config().getRakNetProtocolVersion();
                 request.mtuSize = mtuSizes[mtuIndex];
 
                 udpChannel().writeAndFlush(new AddressedOfflineMessage(request, remoteAddress()));

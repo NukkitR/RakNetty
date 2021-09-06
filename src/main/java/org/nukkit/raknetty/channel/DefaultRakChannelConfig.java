@@ -1,9 +1,14 @@
 package org.nukkit.raknetty.channel;
 
-import io.netty.channel.*;
+import io.netty.channel.ChannelConfig;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.DefaultChannelConfig;
+import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.ThreadLocalRandom;
+import org.apache.commons.lang3.Validate;
+import org.nukkit.raknetty.handler.codec.reliability.SlidingWindow;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -13,32 +18,40 @@ import java.util.Map;
 public class DefaultRakChannelConfig extends DefaultChannelConfig implements RakChannelConfig {
 
     private volatile long localGuid = ThreadLocalRandom.current().nextLong();
-    private volatile int[] mtuSizes = {1492, 1200, 576}; // PPPoE,
+    private volatile int numberOfInternalIds = 10;
+    private volatile int rakProtocolVersion = 6;
+
+    private volatile int[] mtuSizes = {SlidingWindow.MAXIMUM_MTU_SIZE, 1200, 576};
     private volatile int connectAttempts = 6;
     private volatile int connectInterval = 1000;
     private volatile int connectTimeout = 0;
     private volatile int unreliableTimeout = 0;
     private volatile int timeout = 10000;
-    private volatile int numberOfInternalIds = 10;
+
 
     private final DatagramChannel udpChannel;
+    private final RakChannel rakChannel;
 
-    public DefaultRakChannelConfig(Channel channel, DatagramChannel udpChannel) {
+    public DefaultRakChannelConfig(RakChannel channel, DatagramChannel udpChannel) {
         super(channel, new FixedRecvByteBufAllocator(2048));
         this.udpChannel = udpChannel;
+        this.rakChannel = channel;
     }
 
     @Override
     public Map<ChannelOption<?>, Object> getOptions() {
         return getOptions(udpChannel.config().getOptions(),
+                // Shared
                 RakChannelOption.RAKNET_GUID,
-                RakChannelOption.RAKNET_MTU_SIZES,
+                RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS,
+                RakChannelOption.RAKNET_PROTOCOL_VERSION,
+                // Channel
+                RakChannelOption.RAKNET_CONNECT_MTU_SIZES,
                 RakChannelOption.RAKNET_CONNECT_ATTEMPTS,
                 RakChannelOption.RAKNET_CONNECT_INTERVAL,
                 RakChannelOption.RAKNET_CONNECT_TIMEOUT,
                 RakChannelOption.RAKNET_UNRELIABLE_TIMEOUT,
-                RakChannelOption.RAKNET_TIMEOUT,
-                RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS
+                RakChannelOption.RAKNET_TIMEOUT
         );
     }
 
@@ -47,8 +60,14 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     public <T> T getOption(ChannelOption<T> option) {
         if (option == RakChannelOption.RAKNET_GUID) {
             return (T) (Long) getLocalGuid();
-        } else if (option == RakChannelOption.RAKNET_MTU_SIZES) {
-            return (T) getMtuSizes();
+        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+            return (T) (Integer) getMaximumNumberOfInternalIds();
+        } else if (option == RakChannelOption.RAKNET_PROTOCOL_VERSION) {
+            return (T) (Integer) getRakNetProtocolVersion();
+        }
+
+        if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
+            return (T) getConnectMtuSizes();
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
             return (T) (Integer) getConnectAttempts();
         } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
@@ -59,9 +78,8 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             return (T) (Integer) getUnreliableTimeoutMillis();
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             return (T) (Integer) getTimeoutMillis();
-        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
-            return (T) (Integer) getMaximumNumberOfInternalIds();
         }
+
         return udpChannel.config().getOption(option);
     }
 
@@ -71,8 +89,14 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
 
         if (option == RakChannelOption.RAKNET_GUID) {
             setLocalGuid((long) value);
-        } else if (option == RakChannelOption.RAKNET_MTU_SIZES) {
-            setMtuSizes((int[]) value);
+        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+            setMaximumNumberOfInternalIds((int) value);
+        } else if (option == RakChannelOption.RAKNET_PROTOCOL_VERSION) {
+            setRakNetProtocolVersion((int) value);
+        }
+
+        if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
+            setConnectMtuSizes((int[]) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
             setConnectAttempts((int) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_INTERVAL) {
@@ -83,8 +107,6 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             setUnreliableTimeoutMillis((int) value);
         } else if (option == RakChannelOption.RAKNET_TIMEOUT) {
             setTimeoutMillis((int) value);
-        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
-            setMaximumNumberOfInternalIds((int) value);
         } else {
             return udpChannel.config().setOption(option, value);
         }
@@ -92,24 +114,65 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
         return true;
     }
 
+    // Shared Properties
     @Override
     public long getLocalGuid() {
-        return localGuid;
+        if (rakChannel.isClient()) {
+            return localGuid;
+        } else {
+            return rakChannel.parent().config().getLocalGuid();
+        }
     }
 
     @Override
     public RakChannelConfig setLocalGuid(long guid) {
+        Validate.isTrue(rakChannel.isClient(), "Synchronised with server.");
         this.localGuid = guid;
         return this;
     }
 
     @Override
-    public int[] getMtuSizes() {
+    public int getMaximumNumberOfInternalIds() {
+        if (rakChannel.isClient()) {
+            return numberOfInternalIds;
+        } else {
+            return rakChannel.parent().config().getMaximumNumberOfInternalIds();
+        }
+    }
+
+    @Override
+    public RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds) {
+        Validate.isTrue(rakChannel.isClient(), "Synchronised with server.");
+        ObjectUtil.checkPositive(numberOfInternalIds, "numberOfInternalIds");
+        this.numberOfInternalIds = numberOfInternalIds;
+        return this;
+    }
+
+    @Override
+    public int getRakNetProtocolVersion() {
+        if (rakChannel.isClient()) {
+            return rakProtocolVersion;
+        } else {
+            return rakChannel.parent().config().getRakNetProtocolVersion();
+        }
+    }
+
+    @Override
+    public RakChannelConfig setRakNetProtocolVersion(int protocolVersion) {
+        Validate.isTrue(rakChannel.isClient(), "Synchronised with server.");
+        this.rakProtocolVersion = protocolVersion;
+        return this;
+    }
+
+
+    // Client Properties
+    @Override
+    public int[] getConnectMtuSizes() {
         return mtuSizes;
     }
 
     @Override
-    public RakChannelConfig setMtuSizes(int[] mtuSizes) {
+    public RakChannelConfig setConnectMtuSizes(int[] mtuSizes) {
         this.mtuSizes = Arrays.stream(mtuSizes).boxed()
                 .sorted(Comparator.reverseOrder())
                 .mapToInt(i -> i)
@@ -174,18 +237,6 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
     public RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis) {
         ObjectUtil.checkPositiveOrZero(unreliableTimeoutMillis, "unreliableTimeoutMillis");
         this.unreliableTimeout = unreliableTimeoutMillis;
-        return this;
-    }
-
-    @Override
-    public int getMaximumNumberOfInternalIds() {
-        return numberOfInternalIds;
-    }
-
-    @Override
-    public RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds) {
-        ObjectUtil.checkPositive(numberOfInternalIds, "numberOfInternalIds");
-        this.numberOfInternalIds = numberOfInternalIds;
         return this;
     }
 

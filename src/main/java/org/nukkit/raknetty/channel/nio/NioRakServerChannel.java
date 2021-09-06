@@ -46,8 +46,10 @@ public class NioRakServerChannel extends AbstractRakDatagramChannel implements R
 
     @Override
     public void accept(ChannelHandlerContext ctx, OpenConnectionRequest2 request, InetSocketAddress remoteAddress) {
+        int mtuSize = Math.min(request.mtuSize, config().getMaximumMtuSize());
+
         RakChannel channel = newChildChannel(remoteAddress, request.clientGuid)
-                .mtuSize(request.mtuSize)
+                .mtuSize(mtuSize)
                 .connectMode(RakChannel.ConnectMode.UNVERIFIED_SENDER);
 
         childChannels.put(remoteAddress, channel);

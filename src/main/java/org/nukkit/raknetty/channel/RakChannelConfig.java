@@ -2,15 +2,11 @@ package org.nukkit.raknetty.channel;
 
 import io.netty.channel.ChannelConfig;
 
-public interface RakChannelConfig extends ChannelConfig {
+public interface RakChannelConfig extends SharedChannelConfig {
 
-    long getLocalGuid();
+    int[] getConnectMtuSizes();
 
-    RakChannelConfig setLocalGuid(long guid);
-
-    int[] getMtuSizes();
-
-    RakChannelConfig setMtuSizes(int[] mtuSizes);
+    RakChannelConfig setConnectMtuSizes(int[] mtuSizes);
 
     int getConnectAttempts();
 
@@ -33,9 +29,5 @@ public interface RakChannelConfig extends ChannelConfig {
     int getUnreliableTimeoutMillis();
 
     RakChannelConfig setUnreliableTimeoutMillis(int unreliableTimeoutMillis);
-
-    int getMaximumNumberOfInternalIds();
-
-    RakChannelConfig setMaximumNumberOfInternalIds(int numberOfInternalIds);
 
 }

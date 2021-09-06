@@ -7,7 +7,7 @@
     <parent>
         <artifactId>oss-parent</artifactId>
         <groupId>org.nukkit</groupId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0</version>
     </parent>
 
     <artifactId>raknetty</artifactId>
@@ -17,12 +17,26 @@
     <url>https://nukkit.org/</url>
     <description>RakNetty is a high performance framework for servers and clients using RakNet protocol.</description>
 
+    <scm>
+        <connection>scm:git@github.com:NukkitReborn/raknetty.git</connection>
+        <developerConnection>scm:git:git@github.com:NukkitReborn/raknetty.git</developerConnection>
+        <url>https://github.com/NukkitReborn/raknetty</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <repositories>
+        <repository>
+            <id>nukkit-releases</id>
+            <url>https://nukkit.org/nexus/repository/maven-releases/</url>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>org.nukkit</groupId>
                 <artifactId>nukkit-bom</artifactId>
-                <version>1.0-SNAPSHOT</version>
+                <version>1.0</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
