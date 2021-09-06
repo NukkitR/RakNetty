@@ -1,8 +1,6 @@
 # RakNetty
 RakNetty is the implementation (port) of Oculus's [RakNet](https://github.com/facebookarchive/RakNet) in java. This goal is to have 90% features of the c++ version and is within 10% of the performance of the original one.
 
----
-
 ## Why RakNetty?
 
 ### A great port of RakNet
@@ -11,8 +9,6 @@ RakNet is a networking library used by many project, including the renowned Mine
 ### Multi-threaded
 **RakNetty** is built based on Netty, a high-performance asynchronous event-driven framework. In comparison with the original c++ version using Blocked IO, Netty adapts the advantages of Non-blocking IO to further improve the overall performance. **RakNetty** also create channels internally for each RakNet connection and register them to a group of workers. This enables the packets to be dispatched and handled by multiple threads, which is a missing feature of most UDP frameworks due to its nature. The original version of RakNet also handles the packets for all connections in a single thread.
 
----
-
 ## Current status
 
 Currently, RakNetty is functional, but only trivially tested. The codes are also organised in a Netty style structure with Java style conversion rather than a byte-to-byte copy of the original c++ version. We are welcome for issues and pull requests.
@@ -20,7 +16,7 @@ Currently, RakNetty is functional, but only trivially tested. The codes are also
 ## Usage
 
 ### Maven repository
-```
+```xml
 <repositories>
     <repository>
         <id>nukkit-releases</id>
@@ -30,7 +26,7 @@ Currently, RakNetty is functional, but only trivially tested. The codes are also
 ```
 
 ### Dependency
-```
+```xml
 <dependency>
     <groupId>org.nukkit</groupId>
     <artifactId>raknetty</artifactId>
@@ -43,8 +39,6 @@ See [Example Client](https://github.com/NukkitReborn/RakNetty/blob/master/src/ma
 
 ### Create a server
 See [Example Server](https://github.com/NukkitReborn/RakNetty/blob/master/src/main/java/org/nukkit/raknetty/example/RakNettyServer.java)
-
----
 
 ## Channel Options
 
@@ -62,7 +56,7 @@ RakNet defines a number of constants in its original code, which allows the deve
 | RAKNET_OFFLINE_RESPONSE_BUILDER | Builder for offline response               | String         | MOTD          |
 
 Usage:
-```
+```java
 final ServerBootstrap boot = new ServerBootstrap();
 
 boot.group(acceptGroup, connectGroup)
@@ -75,7 +69,6 @@ boot.group(acceptGroup, connectGroup)
     .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER, new ExampleBedrockPingResponse.Builder());
 ```
 
----
 
 ### Client options
 | Option                        | Description                                              | Default RakNet  | Bedrock         |
@@ -90,7 +83,7 @@ boot.group(acceptGroup, connectGroup)
 | RAKNET_TIMEOUT                | Timeout of connection                                    | 10000           | 10000           |
 
 Usage:
-```
+```java
 final Bootstrap boot = new Bootstrap();
 boot.group(workGroup)
     .channel(NioRakChannel.class)
@@ -101,5 +94,3 @@ boot.group(workGroup)
     .option(RakChannelOption.RAKNET_CONNECT_ATTEMPTS, 12)
     .handler(new LoggingHandler("Connection", LogLevel.INFO));
 ```
-
----
