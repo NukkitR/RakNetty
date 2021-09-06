@@ -65,10 +65,8 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
             out.clientGuid = channel().localGuid();
 
             ctx.writeAndFlush(new AddressedOfflineMessage(out, sender));
-            return;
-        }
 
-        if (msg instanceof OpenConnectionReply2) {
+        } else if (msg instanceof OpenConnectionReply2) {
             OpenConnectionReply2 in = (OpenConnectionReply2) msg;
             channel().connectMode(RakChannel.ConnectMode.REQUESTED_CONNECTION);
 
@@ -81,7 +79,5 @@ public class DefaultClientOfflineHandler extends AbstractOfflineHandler {
 
             channel().send(out, PacketPriority.IMMEDIATE_PRIORITY, PacketReliability.RELIABLE, 0);
         }
-
     }
-
 }

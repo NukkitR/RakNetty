@@ -44,15 +44,15 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
     @SuppressWarnings("unchecked")
     @Override
     public <T> T getOption(ChannelOption<T> option) {
-        if (option == RakChannelOption.RAKNET_GUID) {
+        if (option == RakServerChannelOption.RAKNET_GUID) {
             return (T) (Long) getLocalGuid();
-        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+        } else if (option == RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
             return (T) (Integer) getMaximumNumberOfInternalIds();
-        } else if (option == RakChannelOption.RAKNET_PROTOCOL_VERSION) {
+        } else if (option == RakServerChannelOption.RAKNET_PROTOCOL_VERSION) {
             return (T) (Integer) getRakNetProtocolVersion();
         }
 
-        if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
+        else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             return (T) (Integer) getMaximumConnections();
         } else if (option == RakServerChannelOption.RAKNET_MAX_MTU_SIZE) {
             return (T) (Integer) getMaximumMtuSize();
@@ -66,15 +66,15 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
     public <T> boolean setOption(ChannelOption<T> option, T value) {
         validate(option, value);
 
-        if (option == RakChannelOption.RAKNET_GUID) {
+        if (option == RakServerChannelOption.RAKNET_GUID) {
             setLocalGuid((long) value);
-        } else if (option == RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
+        } else if (option == RakServerChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS) {
             setMaximumNumberOfInternalIds((int) value);
-        } else if (option == RakChannelOption.RAKNET_PROTOCOL_VERSION) {
+        } else if (option == RakServerChannelOption.RAKNET_PROTOCOL_VERSION) {
             setRakNetProtocolVersion((int) value);
         }
 
-        if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
+        else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             setMaximumConnections((int) value);
         } else if (option == RakServerChannelOption.RAKNET_MAX_MTU_SIZE) {
             setMaximumMtuSize((int) value);

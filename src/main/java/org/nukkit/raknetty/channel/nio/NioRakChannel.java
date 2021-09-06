@@ -10,10 +10,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.Validate;
 import org.nukkit.raknetty.channel.*;
-import org.nukkit.raknetty.handler.codec.InternalPacket;
-import org.nukkit.raknetty.handler.codec.PacketPriority;
-import org.nukkit.raknetty.handler.codec.PacketReliability;
-import org.nukkit.raknetty.handler.codec.ReliabilityMessage;
+import org.nukkit.raknetty.handler.codec.*;
 import org.nukkit.raknetty.handler.codec.offline.DefaultClientOfflineHandler;
 import org.nukkit.raknetty.handler.codec.offline.OpenConnectionRequest1;
 import org.nukkit.raknetty.handler.codec.reliability.*;
@@ -68,7 +65,14 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
         config = newConfig();
 
         if (isClient()) {
-            DefaultClientOfflineHandler offlineHandler = new DefaultClientOfflineHandler(this);
+            DefaultClientOfflineHandler offlineHandler = new DefaultClientOfflineHandler(this) {
+                @Override
+                public void connectionAttemptFailed(ChannelHandlerContext ctx, MessageIdentifier reason) {
+                    if (connectPromise != null) {
+                        connectPromise.tryFailure(new ConnectException(reason.name()));
+                    }
+                }
+            };
             pipeline().addLast(DefaultClientOfflineHandler.NAME, offlineHandler);
         }
 
@@ -403,9 +407,9 @@ public class NioRakChannel extends AbstractRakDatagramChannel implements RakChan
                                 }
 
                                 if (future.isCancelled()) {
-                                    LOGGER.debug("{} CONNECTION CANCELLED", NioRakChannel.this);
+                                    LOGGER.debug("{} CONNECT: CANCELLED", NioRakChannel.this);
                                 } else {
-                                    LOGGER.debug("{} CONNECTION FAILED", NioRakChannel.this);
+                                    LOGGER.debug("{} CONNECT: FAILED", NioRakChannel.this);
                                 }
                             }
                         }

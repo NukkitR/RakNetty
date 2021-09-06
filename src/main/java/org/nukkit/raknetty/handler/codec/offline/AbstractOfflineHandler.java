@@ -69,20 +69,14 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
                     in = new OpenConnectionReply2();
                     break;
                 case ID_CONNECTION_ATTEMPT_FAILED:
-                    in = new ConnectionAttemptFailed();
-                    break;
                 case ID_NO_FREE_INCOMING_CONNECTIONS:
-                    in = new NoFreeIncomingConnection();
-                    break;
                 case ID_CONNECTION_BANNED:
-                    in = new ConnectionBanned();
-                    break;
                 case ID_ALREADY_CONNECTED:
-                    in = new AlreadyConnected();
-                    break;
+                case ID_INVALID_PASSWORD:
                 case ID_IP_RECENTLY_CONNECTED:
-                    in = new IpRecentlyConnected();
-                    break;
+                case ID_INCOMPATIBLE_PROTOCOL_VERSION:
+                    connectionAttemptFailed(ctx, id);
+                    return;
                 default:
                     isOffline = false;
                     return;
@@ -101,11 +95,14 @@ public abstract class AbstractOfflineHandler extends ChannelDuplexHandler {
         }
     }
 
+    public void connectionAttemptFailed(ChannelHandlerContext ctx, MessageIdentifier reason) {
+        // NOOP
+    }
+
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         LOGGER.debug("Exception caught when handling a message", cause);
     }
 
     public abstract void readOfflinePacket(ChannelHandlerContext ctx, OfflineMessage msg, InetSocketAddress sender);
-
 }

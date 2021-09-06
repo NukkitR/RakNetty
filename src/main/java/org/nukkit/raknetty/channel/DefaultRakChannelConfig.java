@@ -66,7 +66,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             return (T) (Integer) getRakNetProtocolVersion();
         }
 
-        if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
+        else if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
             return (T) getConnectMtuSizes();
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
             return (T) (Integer) getConnectAttempts();
@@ -95,7 +95,7 @@ public class DefaultRakChannelConfig extends DefaultChannelConfig implements Rak
             setRakNetProtocolVersion((int) value);
         }
 
-        if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
+        else if (option == RakChannelOption.RAKNET_CONNECT_MTU_SIZES) {
             setConnectMtuSizes((int[]) value);
         } else if (option == RakChannelOption.RAKNET_CONNECT_ATTEMPTS) {
             setConnectAttempts((int) value);
