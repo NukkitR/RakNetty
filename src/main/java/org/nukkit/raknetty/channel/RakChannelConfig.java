@@ -1,7 +1,5 @@
 package org.nukkit.raknetty.channel;
 
-import io.netty.channel.ChannelConfig;
-
 public interface RakChannelConfig extends SharedChannelConfig {
 
     int[] getConnectMtuSizes();

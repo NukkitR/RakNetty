@@ -24,7 +24,6 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
 
     private final Map<InetAddress, Long> recentlyConnected = new HashMap<>();
     private final Map<InetSocketAddress, Long> requested = new HashMap<>();
-    private OfflinePingResponse pingResponse;
 
     private ScheduledFuture<?> updateTask;
 
@@ -53,7 +52,7 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
                 UnconnectedPong out = new UnconnectedPong();
                 out.sendPingTime = in.sendPingTime;
                 out.senderGuid = channel().localGuid();
-                out.response = pingResponse.get(channel());
+                out.response = channel().config().getOfflinePingResponse().get(channel());
                 reply = out;
                 return;
             }
@@ -194,10 +193,6 @@ public class DefaultServerOfflineHandler extends AbstractOfflineHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-
-        if (pingResponse == null) {
-            pingResponse = channel().config().getOfflinePingResponseBuilder().build();
-        }
 
         if (updateTask == null) {
             // run the task every 60 seconds to remove all time-out requests

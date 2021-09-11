@@ -28,15 +28,6 @@ public class ExampleBedrockPingResponse implements OfflinePingResponse {
             String msg = String.format(format, numOfConnections, maxConnections, guid, port);
             RakNetUtil.writeString(data, msg);
         }
-
         return data;
-    }
-
-    public static class Builder implements OfflinePingResponse.Builder<ExampleBedrockPingResponse> {
-
-        @Override
-        public ExampleBedrockPingResponse build() {
-            return new ExampleBedrockPingResponse();
-        }
     }
 }

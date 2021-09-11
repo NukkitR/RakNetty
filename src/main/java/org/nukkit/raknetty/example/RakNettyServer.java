@@ -41,7 +41,7 @@ public class RakNettyServer {
                     .option(RakServerChannelOption.RAKNET_PROTOCOL_VERSION, 10)
                     .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 15)
                     .option(RakServerChannelOption.RAKNET_MAX_MTU_SIZE, 1400)
-                    .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER, new ExampleBedrockPingResponse.Builder())
+                    .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE, new ExampleBedrockPingResponse())
                     .handler(new LoggingHandler("Reactor", LogLevel.INFO))
                     .childHandler(new LoggingHandler("Connection", LogLevel.INFO));
 

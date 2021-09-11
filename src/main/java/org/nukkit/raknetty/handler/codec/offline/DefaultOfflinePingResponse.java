@@ -10,28 +10,13 @@ public class DefaultOfflinePingResponse implements OfflinePingResponse {
 
     protected final ByteBuf offlineData;
 
-    protected DefaultOfflinePingResponse(ByteBuf offlineData) {
-        this.offlineData = offlineData;
+    public DefaultOfflinePingResponse(String message) {
+        this.offlineData = Unpooled.buffer();
+        this.offlineData.writeCharSequence(message, StandardCharsets.UTF_8);
     }
 
     @Override
     public ByteBuf get(RakServerChannel channel) {
         return offlineData;
-    }
-
-    public static class Builder implements OfflinePingResponse.Builder<DefaultOfflinePingResponse> {
-        private String message;
-
-        public Builder withMessage(String message) {
-            this.message = message;
-            return this;
-        }
-
-        @Override
-        public DefaultOfflinePingResponse build() {
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeCharSequence(message, StandardCharsets.UTF_8);
-            return new DefaultOfflinePingResponse(buf);
-        }
     }
 }

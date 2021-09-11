@@ -18,8 +18,7 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
 
     private volatile int maxConnections = 20;
     private volatile int maxMtuSize = SlidingWindow.MAXIMUM_MTU_SIZE;
-    private volatile OfflinePingResponse.Builder<?> responseBuilder =
-            new DefaultOfflinePingResponse.Builder().withMessage("Offline Data");
+    private volatile OfflinePingResponse response = new DefaultOfflinePingResponse("Offline Data");
 
     private final DatagramChannel udpChannel;
 
@@ -37,7 +36,7 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
 
                 RakServerChannelOption.RAKNET_MAX_CONNECTIONS,
                 RakServerChannelOption.RAKNET_MAX_MTU_SIZE,
-                RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER
+                RakServerChannelOption.RAKNET_OFFLINE_RESPONSE
         );
     }
 
@@ -50,14 +49,12 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
             return (T) (Integer) getMaximumNumberOfInternalIds();
         } else if (option == RakServerChannelOption.RAKNET_PROTOCOL_VERSION) {
             return (T) (Integer) getRakNetProtocolVersion();
-        }
-
-        else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
+        } else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             return (T) (Integer) getMaximumConnections();
         } else if (option == RakServerChannelOption.RAKNET_MAX_MTU_SIZE) {
             return (T) (Integer) getMaximumMtuSize();
-        } else if (option == RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER) {
-            return (T) getOfflinePingResponseBuilder();
+        } else if (option == RakServerChannelOption.RAKNET_OFFLINE_RESPONSE) {
+            return (T) getOfflinePingResponse();
         }
         return udpChannel.config().getOption(option);
     }
@@ -72,14 +69,12 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
             setMaximumNumberOfInternalIds((int) value);
         } else if (option == RakServerChannelOption.RAKNET_PROTOCOL_VERSION) {
             setRakNetProtocolVersion((int) value);
-        }
-
-        else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
+        } else if (option == RakServerChannelOption.RAKNET_MAX_CONNECTIONS) {
             setMaximumConnections((int) value);
         } else if (option == RakServerChannelOption.RAKNET_MAX_MTU_SIZE) {
             setMaximumMtuSize((int) value);
-        } else if (option == RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER) {
-            setOfflinePingResponseBuilder((OfflinePingResponse.Builder<?>) value);
+        } else if (option == RakServerChannelOption.RAKNET_OFFLINE_RESPONSE) {
+            setOfflinePingResponseBuilder((OfflinePingResponse) value);
         } else {
             return udpChannel.config().setOption(option, value);
         }
@@ -148,13 +143,13 @@ public class DefaultRakServerChannelConfig extends DefaultChannelConfig implemen
     }
 
     @Override
-    public OfflinePingResponse.Builder<?> getOfflinePingResponseBuilder() {
-        return responseBuilder;
+    public OfflinePingResponse getOfflinePingResponse() {
+        return response;
     }
 
     @Override
-    public RakServerChannelConfig setOfflinePingResponseBuilder(OfflinePingResponse.Builder<?> builder) {
-        this.responseBuilder = builder;
+    public RakServerChannelConfig setOfflinePingResponseBuilder(OfflinePingResponse response) {
+        this.response = response;
         return this;
     }
 

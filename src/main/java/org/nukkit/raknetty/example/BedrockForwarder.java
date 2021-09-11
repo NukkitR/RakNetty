@@ -55,7 +55,7 @@ public class BedrockForwarder {
                 // consist with the bedrock server's RakNet configuration
                 .option(RakServerChannelOption.RAKNET_MAX_CONNECTIONS, 1)
                 .option(RakServerChannelOption.RAKNET_MAX_MTU_SIZE, 1400)
-                .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE_BUILDER, new ExampleBedrockPingResponse.Builder())
+                .option(RakServerChannelOption.RAKNET_OFFLINE_RESPONSE, new ExampleBedrockPingResponse())
                 .handler(new LoggingHandler("RakServerLogger", LogLevel.DEBUG, ByteBufFormat.SIMPLE))
                 .childOption(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
                 .childHandler(new ChannelInitializer<RakChannel>() {

@@ -1,6 +1,5 @@
 package org.nukkit.raknetty.channel;
 
-import io.netty.channel.ChannelConfig;
 import org.nukkit.raknetty.handler.codec.offline.OfflinePingResponse;
 
 public interface RakServerChannelConfig extends SharedChannelConfig {
@@ -13,7 +12,7 @@ public interface RakServerChannelConfig extends SharedChannelConfig {
 
     RakServerChannelConfig setMaximumMtuSize(int maxMtuSize);
 
-    OfflinePingResponse.Builder<?> getOfflinePingResponseBuilder();
+    OfflinePingResponse getOfflinePingResponse();
 
-    RakServerChannelConfig setOfflinePingResponseBuilder(OfflinePingResponse.Builder<?> builder);
+    RakServerChannelConfig setOfflinePingResponseBuilder(OfflinePingResponse response);
 }
