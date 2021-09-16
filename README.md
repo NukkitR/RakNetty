@@ -27,7 +27,7 @@ with Java style conversion rather than a byte-to-byte copy of the original c++ v
 <repositories>
     <repository>
         <id>nukkit-releases</id>
-    <url>https://nukkit.org/nexus/repository/maven-releases/</url>
+        <url>https://nukkit.org/nexus/repository/maven-releases/</url>
     </repository>
 </repositories>
 ```
@@ -38,7 +38,7 @@ with Java style conversion rather than a byte-to-byte copy of the original c++ v
 <dependency>
     <groupId>org.nukkit</groupId>
     <artifactId>raknetty</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
 </dependency>
 ```
 
