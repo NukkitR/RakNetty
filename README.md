@@ -98,6 +98,7 @@ Usage:
 
 ```java
 Bootstrap boot; // your own bootstrap
+
 boot.option(RakChannelOption.RAKNET_GUID, 654321L)
     .option(RakChannelOption.RAKNET_NUMBER_OF_INTERNAL_IDS, 20)
     .option(RakChannelOption.RAKNET_PROTOCOL_VERSION, 10)
